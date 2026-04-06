@@ -135,9 +135,22 @@ SIMPLE_JWT = {
 }
 
 # CORS
-CORS_ALLOWED_ORIGINS = os.getenv(
-    'CORS_ALLOWED_ORIGINS', 'http://localhost:3000'
-).split(',')
+_cors_origins_raw = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
+CORS_ALLOWED_ORIGINS = [
+    origin.strip().rstrip('/')
+    for origin in _cors_origins_raw.split(',')
+    if origin.strip()
+]
+
+_cors_regex_raw = os.getenv(
+    'CORS_ALLOWED_ORIGIN_REGEXES',
+    r'^https://.*\.vercel\.app$'
+)
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    pattern.strip()
+    for pattern in _cors_regex_raw.split(',')
+    if pattern.strip()
+]
 
 # GetStream Video
 GETSTREAM_API_KEY = os.getenv('GETSTREAM_API_KEY', '')
