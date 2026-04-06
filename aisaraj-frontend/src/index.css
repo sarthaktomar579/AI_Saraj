@@ -24,19 +24,53 @@
 
 body {
   font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow-x: hidden;
   background-color: var(--bg-primary);
   background-image:
-    linear-gradient(rgba(8, 10, 32, 0.86), rgba(10, 12, 38, 0.9)),
-    radial-gradient(circle at 15% 20%, rgba(108, 99, 255, 0.2), transparent 38%),
-    radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.22), transparent 42%),
+    linear-gradient(rgba(8, 10, 32, 0.74), rgba(10, 12, 38, 0.8)),
+    radial-gradient(circle at 15% 20%, rgba(108, 99, 255, 0.26), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.28), transparent 44%),
     url('../public/ai-saraj-avatar.png');
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
   background-position: center, 12% 18%, 88% 82%, center right;
-  background-size: cover, 42% 42%, 45% 45%, min(560px, 42vw);
+  background-size: cover, 44% 44%, 47% 47%, min(620px, 46vw);
   background-attachment: fixed, fixed, fixed, fixed;
   color: var(--text-primary);
   line-height: 1.6;
   min-height: 100vh;
+}
+
+#root {
+  position: relative;
+  z-index: 2;
+}
+
+body::before,
+body::after {
+  position: fixed;
+  z-index: 1;
+  color: rgba(165, 184, 255, 0.34);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(108, 99, 255, 0.25);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+}
+
+body::before {
+  content: 'S-7';
+  right: clamp(95px, 11vw, 170px);
+  top: clamp(330px, 43vh, 470px);
+  font-size: clamp(0.65rem, 0.92vw, 0.85rem);
+}
+
+body::after {
+  content: 'Sarthak-7';
+  right: clamp(55px, 7vw, 120px);
+  top: clamp(440px, 58vh, 620px);
+  font-size: clamp(0.64rem, 0.9vw, 0.82rem);
 }
 
 a { color: var(--accent); text-decoration: none; }
@@ -68,11 +102,13 @@ button {
 }
 
 .card {
-  background: var(--bg-card);
+  background: rgba(37, 37, 71, 0.74);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   border-radius: var(--radius);
   padding: 24px;
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  border: 1px solid rgba(115, 117, 198, 0.42);
+  box-shadow: 0 12px 38px rgba(0, 0, 0, 0.35);
 }
 
 .container {
