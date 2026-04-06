@@ -28,6 +28,7 @@ export default function DashboardPage() {
     const [scheduleError, setScheduleError] = useState('');
     const [expandedReport, setExpandedReport] = useState(null);
     const [reportData, setReportData] = useState({});
+    const [expandedPracticeReport, setExpandedPracticeReport] = useState(null);
 
     const isInterviewer = user?.role === 'interviewer' || user?.role === 'admin';
 
@@ -372,15 +373,100 @@ export default function DashboardPage() {
                     <h2 style={{ marginBottom: 16 }}>Practice Sessions</h2>
                     <div style={{ display: 'grid', gap: 12 }}>
                         {sessions.slice(0, 5).map(s => (
-                            <div key={s.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <strong>{s.topic || 'Practice'}</strong>
-                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                                        {s.difficulty} · {new Date(s.started_at).toLocaleDateString()}
-                                        {s.evaluation && <span style={{ color: '#10b981', marginLeft: 8 }}>Score: {s.evaluation.total_score}/100</span>}
-                                    </p>
+                            <div key={s.id}>
+                                <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                                    <div>
+                                        <strong>{s.topic || 'Practice'}</strong>
+                                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                            {s.difficulty} · {new Date(s.started_at).toLocaleDateString()}
+                                            {s.evaluation && <span style={{ color: '#10b981', marginLeft: 8 }}>Score: {s.evaluation.total_score}/100</span>}
+                                        </p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-warning'}`}>{s.status}</span>
+                                        {s.status === 'completed' && s.evaluation && (
+                                            <button
+                                                onClick={() => setExpandedPracticeReport(expandedPracticeReport === s.id ? null : s.id)}
+                                                style={{
+                                                    padding: '6px 14px',
+                                                    borderRadius: 8,
+                                                    border: 'none',
+                                                    background: '#6c63ff',
+                                                    color: '#fff',
+                                                    cursor: 'pointer',
+                                                    fontWeight: 600,
+                                                    fontSize: '0.85rem',
+                                                }}
+                                            >
+                                                {expandedPracticeReport === s.id ? 'Hide Report' : 'View Report'}
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                                <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-warning'}`}>{s.status}</span>
+
+                                {expandedPracticeReport === s.id && s.evaluation && (() => {
+                                    const r = s.evaluation;
+                                    const raw = r.raw_ai_response || {};
+                                    const hiringColor = (r.hiring_signal || '').includes('Hire')
+                                        ? '#10b981'
+                                        : r.hiring_signal === 'Consider'
+                                            ? '#f59e0b'
+                                            : '#f87171';
+                                    return (
+                                        <div className="card" style={{ marginTop: 10, padding: 20, borderLeft: `4px solid ${hiringColor}` }}>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 16 }}>
+                                                <div><strong>Total</strong><br /><span style={{ fontSize: '1.5rem', color: r.total_score >= 50 ? '#10b981' : '#f87171' }}>{r.total_score}/100</span></div>
+                                                <div><strong>Communication</strong><br />{r.communication}/20</div>
+                                                <div><strong>Technical</strong><br />{r.technical_depth}/25</div>
+                                                <div><strong>Code Quality</strong><br />{r.code_quality}/20</div>
+                                                <div><strong>Optimization</strong><br />{r.optimization}/15</div>
+                                                <div><strong>Problem Solving</strong><br />{r.problem_solving}/20</div>
+                                            </div>
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
+                                                <div className="card" style={{ padding: 12 }}>
+                                                    <strong>🎯 Topic Relevance</strong>
+                                                    <p style={{ marginTop: 4 }}>{raw.topic_relevance || 0}/10</p>
+                                                </div>
+                                                <div className="card" style={{ padding: 12 }}>
+                                                    <strong>👁️ Proctoring</strong>
+                                                    <p style={{ marginTop: 4 }}>{raw.proctoring_score || 0}/10</p>
+                                                </div>
+                                            </div>
+
+                                            {(raw.detailed_feedback || '').trim() && (
+                                                <div style={{ marginBottom: 12 }}>
+                                                    <strong>📝 Feedback</strong>
+                                                    <p style={{ marginTop: 4, color: 'var(--text-secondary)' }}>{raw.detailed_feedback}</p>
+                                                </div>
+                                            )}
+
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                                                <div>
+                                                    <strong style={{ color: '#10b981' }}>Strengths</strong>
+                                                    <ul style={{ margin: '6px 0', paddingLeft: 18 }}>
+                                                        {(r.strengths || []).length > 0
+                                                            ? r.strengths.map((v, i) => <li key={i} style={{ fontSize: '0.85rem' }}>{v}</li>)
+                                                            : <li style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None</li>}
+                                                    </ul>
+                                                </div>
+                                                <div>
+                                                    <strong style={{ color: '#f87171' }}>Weaknesses</strong>
+                                                    <ul style={{ margin: '6px 0', paddingLeft: 18 }}>
+                                                        {(r.weaknesses || []).length > 0
+                                                            ? r.weaknesses.map((v, i) => <li key={i} style={{ fontSize: '0.85rem' }}>{v}</li>)
+                                                            : <li style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>None</li>}
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <p style={{ marginTop: 12, fontSize: '0.9rem' }}>
+                                                <strong>Hiring Signal: </strong>
+                                                <span style={{ color: hiringColor, fontWeight: 700 }}>{r.hiring_signal || 'No Hire'}</span>
+                                            </p>
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         ))}
                     </div>
