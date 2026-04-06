@@ -46,28 +46,11 @@ body {
   z-index: 2;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  z-index: 1;
-  right: clamp(34px, 4.8vw, 86px);
-  top: clamp(416px, 58vh, 640px);
-  width: clamp(126px, 13vw, 162px);
-  height: clamp(140px, 17vh, 196px);
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 30% 35%, rgba(16, 30, 84, 0.52), transparent 60%),
-    linear-gradient(180deg, rgba(10, 16, 54, 0.45), rgba(8, 14, 48, 0.64));
-  transform: skewX(-8deg);
-  pointer-events: none;
-  mix-blend-mode: multiply;
-  opacity: 0.92;
-}
-
+body::before,
 body::after {
   position: fixed;
   z-index: 1;
-  color: rgba(158, 181, 255, 0.32);
+  color: rgba(160, 183, 255, 0.34);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-shadow: 0 0 6px rgba(108, 99, 255, 0.2);
@@ -75,12 +58,20 @@ body::after {
   font-weight: 700;
   pointer-events: none;
   mix-blend-mode: screen;
-  white-space: pre;
-  content: 'S-7\A\A Sarthak-7';
-  right: clamp(58px, 7.4vw, 124px);
-  top: clamp(282px, 39vh, 436px);
+}
+
+body::before {
+  content: 'S-7';
+  right: clamp(72px, 8.6vw, 138px);
+  top: clamp(248px, 34vh, 340px);
+  font-size: clamp(0.6rem, 0.82vw, 0.74rem);
+}
+
+body::after {
+  content: 'Sarthak-7';
+  right: clamp(52px, 6.4vw, 114px);
+  top: clamp(392px, 54vh, 528px);
   font-size: clamp(0.62rem, 0.86vw, 0.8rem);
-  line-height: 1.25;
 }
 
 @supports not (mix-blend-mode: screen) {
