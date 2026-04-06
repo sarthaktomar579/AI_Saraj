@@ -29,7 +29,7 @@ body {
     linear-gradient(rgba(8, 10, 32, 0.86), rgba(10, 12, 38, 0.9)),
     radial-gradient(circle at 15% 20%, rgba(108, 99, 255, 0.2), transparent 38%),
     radial-gradient(circle at 85% 80%, rgba(139, 92, 246, 0.22), transparent 42%),
-    url('/ai-saraj-avatar.png');
+    url('../public/ai-saraj-avatar.png');
   background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
   background-position: center, 12% 18%, 88% 82%, center right;
   background-size: cover, 42% 42%, 45% 45%, min(560px, 42vw);
