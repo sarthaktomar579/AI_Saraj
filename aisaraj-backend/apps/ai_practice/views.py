@@ -4,14 +4,53 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from apps.accounts.permissions import IsStudent
-from .models import PracticeSession
+from .models import PracticeSession, PracticeEvaluation
 from .serializers import (
     SessionCreateSerializer, SessionDetailSerializer,
     AIQuestionSerializer, AnswerSubmitSerializer, PracticeEvaluationSerializer,
 )
 from .services import PracticeService
+
+
+def _build_abandoned_practice_eval_fields():
+    """Zero-score evaluation used when a practice interview is abandoned mid-way."""
+    return dict(
+        total_score=0,
+        communication=0,
+        technical_depth=0,
+        code_quality=0,
+        optimization=0,
+        problem_solving=0,
+        strengths=[],
+        weaknesses=['Interview was terminated before completion'],
+        improvement_plan=['Complete the full interview without closing the tab'],
+        recommended_topics=[],
+        hiring_signal='No Hire',
+        raw_ai_response={'note': 'Auto-closed abandoned practice session'},
+    )
+
+
+def _auto_complete_abandoned_practice_sessions(student):
+    """
+    Any active practice session left mid-way should be finalized as completed with 0 score.
+    """
+    abandoned = PracticeSession.objects.filter(student=student, status='active')
+    if not abandoned.exists():
+        return
+
+    defaults = _build_abandoned_practice_eval_fields()
+    now = timezone.now()
+    for session in abandoned:
+        PracticeEvaluation.objects.update_or_create(
+            session=session,
+            defaults=defaults,
+        )
+        session.status = 'completed'
+        session.completed_at = now
+        session.save(update_fields=['status', 'completed_at'])
 
 
 class SessionCreateView(generics.CreateAPIView):
@@ -35,6 +74,7 @@ class SessionListView(generics.ListAPIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get_queryset(self):
+        _auto_complete_abandoned_practice_sessions(self.request.user)
         return PracticeSession.objects.filter(student=self.request.user)
 
 
@@ -43,6 +83,7 @@ class SessionDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
     def get_queryset(self):
+        _auto_complete_abandoned_practice_sessions(self.request.user)
         return PracticeSession.objects.filter(student=self.request.user)
 
 
