@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+venv/
+env/
+.venv/
+
+# Node
+node_modules/
+build/
+dist/
+
+# Environment & secrets
+.env
+.env.local
+.env.production
+
+# Database
+db.sqlite3
+
+# Django
+media/
+staticfiles/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Exclude interview prep doc
+AI_Saraj_Interview_Preparation.md
