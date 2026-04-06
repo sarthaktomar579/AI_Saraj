@@ -67,14 +67,14 @@ body::before {
 
 body::after {
   content: 'Sarthak-007';
-  right: clamp(120px, 13.2vw, 202px);
-  top: clamp(84px, 12.8vh, 140px);
-  font-size: clamp(0.58rem, 0.78vw, 0.7rem);
-  letter-spacing: 0.11em;
-  color: rgba(76, 103, 182, 0.82);
-  text-shadow: 0 0 3px rgba(17, 31, 75, 0.35);
-  mix-blend-mode: normal;
-  opacity: 0.92;
+  right: clamp(154px, 17.4vw, 268px);
+  top: clamp(64px, 9.6vh, 112px);
+  font-size: clamp(0.62rem, 0.82vw, 0.74rem);
+  letter-spacing: 0.12em;
+  color: rgba(100, 126, 198, 0.9);
+  text-shadow: 0 0 2px rgba(14, 24, 56, 0.45);
+  mix-blend-mode: screen;
+  opacity: 0.96;
 }
 
 @supports not (mix-blend-mode: screen) {

@@ -16,13 +16,24 @@ class PracticeService:
         self.ai_engine = AIEngineService()
         self.sandbox = SandboxService()
 
-    def start_session(self, student, topic, difficulty, selected_tracks=None, selected_subcategories=None):
+    def start_session(
+        self,
+        student,
+        topic,
+        difficulty,
+        selected_tracks=None,
+        selected_subcategories=None,
+        session_type='practice',
+        scheduled_interview_id=None,
+    ):
         return PracticeSession.objects.create(
             student=student,
             topic=topic,
             difficulty=difficulty,
             selected_tracks=selected_tracks or [],
             selected_subcategories=selected_subcategories or {},
+            session_type=session_type or 'practice',
+            scheduled_interview_id=scheduled_interview_id,
             status='active',
         )
 

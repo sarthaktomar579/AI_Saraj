@@ -7,12 +7,15 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 class PracticeSession(models.Model):
     DIFFICULTY_CHOICES = [('easy', 'Easy'), ('medium', 'Medium'), ('hard', 'Hard')]
     STATUS_CHOICES = [('active', 'Active'), ('completed', 'Completed')]
+    SESSION_TYPE_CHOICES = [('practice', 'Practice'), ('scheduled', 'Scheduled')]
 
     student = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='practice_sessions')
     topic = models.CharField(max_length=100)
     difficulty = models.CharField(max_length=10, choices=DIFFICULTY_CHOICES)
     selected_tracks = models.JSONField(default=list)
     selected_subcategories = models.JSONField(default=dict)
+    session_type = models.CharField(max_length=20, choices=SESSION_TYPE_CHOICES, default='practice')
+    scheduled_interview_id = models.IntegerField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
     current_q_index = models.IntegerField(default=0)
     started_at = models.DateTimeField(auto_now_add=True)

@@ -14,6 +14,10 @@ from .serializers import (
 )
 from .services import PracticeService
 
+try:
+    from apps.ai_interview.models import AIScheduledInterview
+except Exception:  # pragma: no cover - app loading fallback
+    AIScheduledInterview = None
 
 def _build_abandoned_practice_eval_fields():
     """Zero-score evaluation used when a practice interview is abandoned mid-way."""
@@ -37,7 +41,11 @@ def _auto_complete_abandoned_practice_sessions(student):
     """
     Any active practice session left mid-way should be finalized as completed with 0 score.
     """
-    abandoned = PracticeSession.objects.filter(student=student, status='active')
+    abandoned = PracticeSession.objects.filter(
+        student=student,
+        status='active',
+        session_type='practice',
+    )
     if not abandoned.exists():
         return
 
@@ -65,6 +73,8 @@ class SessionCreateView(generics.CreateAPIView):
             difficulty=serializer.validated_data['difficulty'],
             selected_tracks=serializer.validated_data['selected_tracks'],
             selected_subcategories=serializer.validated_data.get('selected_subcategories', {}),
+            session_type=serializer.validated_data.get('session_type', 'practice'),
+            scheduled_interview_id=serializer.validated_data.get('scheduled_interview_id'),
         )
         serializer.instance = session
 
@@ -73,9 +83,30 @@ class SessionListView(generics.ListAPIView):
     serializer_class = SessionDetailSerializer
     permission_classes = [IsAuthenticated, IsStudent]
 
+    def _mark_legacy_scheduled_rows(self, student):
+        """
+        Backfill old rows created before session_type existed:
+        if topic matches student's scheduled interview topics and score is 0, mark as scheduled.
+        """
+        if AIScheduledInterview is None:
+            return
+        scheduled_topics = list(
+            AIScheduledInterview.objects.filter(student=student).values_list('topic', flat=True)
+        )
+        if not scheduled_topics:
+            return
+        PracticeSession.objects.filter(
+            student=student,
+            session_type='practice',
+            topic__in=scheduled_topics,
+            status='completed',
+            evaluation__total_score=0,
+        ).update(session_type='scheduled')
+
     def get_queryset(self):
         _auto_complete_abandoned_practice_sessions(self.request.user)
-        return PracticeSession.objects.filter(student=self.request.user)
+        self._mark_legacy_scheduled_rows(self.request.user)
+        return PracticeSession.objects.filter(student=self.request.user, session_type='practice')
 
 
 class SessionDetailView(generics.RetrieveAPIView):
@@ -84,7 +115,7 @@ class SessionDetailView(generics.RetrieveAPIView):
 
     def get_queryset(self):
         _auto_complete_abandoned_practice_sessions(self.request.user)
-        return PracticeSession.objects.filter(student=self.request.user)
+        return PracticeSession.objects.filter(student=self.request.user, session_type='practice')
 
 
 class StartInterviewQuestionsView(APIView):

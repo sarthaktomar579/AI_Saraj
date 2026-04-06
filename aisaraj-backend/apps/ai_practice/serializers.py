@@ -12,6 +12,8 @@ class SessionCreateSerializer(serializers.ModelSerializer):
         required=False,
         default=dict,
     )
+    session_type = serializers.ChoiceField(choices=['practice', 'scheduled'], required=False, default='practice')
+    scheduled_interview_id = serializers.IntegerField(required=False, allow_null=True, default=None)
 
     def validate_selected_tracks(self, value):
         allowed = {'frontend', 'backend', 'dsa', 'data_analyst'}
@@ -23,7 +25,10 @@ class SessionCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PracticeSession
-        fields = ['id', 'topic', 'difficulty', 'selected_tracks', 'selected_subcategories']
+        fields = [
+            'id', 'topic', 'difficulty', 'selected_tracks', 'selected_subcategories',
+            'session_type', 'scheduled_interview_id',
+        ]
 
 
 class AIQuestionSerializer(serializers.ModelSerializer):

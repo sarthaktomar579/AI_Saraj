@@ -471,6 +471,8 @@ export default function AIPracticePage({ scheduled = false }) {
                 difficulty,
                 selected_tracks: selectedTracks,
                 selected_subcategories: selectedSubcategories,
+                session_type: isScheduled ? 'scheduled' : 'practice',
+                scheduled_interview_id: isScheduled ? Number(scheduledInterviewIdRef.current) : null,
             });
             setSession(sessionData);
             sessionRef.current = sessionData;
