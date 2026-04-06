@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd aisaraj-frontend && npm install && npm run build",
+  "outputDirectory": "aisaraj-frontend/build",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
