@@ -76,6 +76,7 @@ export default function AIPracticePage({ scheduled = false }) {
     const lastProctorWarningAtRef = useRef(0);
     const warningCountRef = useRef(0);
     const warningHideTimeoutRef = useRef(null);
+    const isFinishingRef = useRef(false);
 
     const { result, running, execute } = useCodeExecution();
     const speech = useSpeech();
@@ -193,6 +194,39 @@ export default function AIPracticePage({ scheduled = false }) {
             proctorIntervalRef.current = null;
         }
     }, []);
+
+    useEffect(() => {
+        if (!isScheduled || !scheduledInterviewIdRef.current) return undefined;
+
+        const flushAbandonedAttempt = () => {
+            const inActivePhase = [PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase);
+            if (!inActivePhase || phase === PHASE.EVAL || isFinishingRef.current) return;
+
+            const token = localStorage.getItem('access_token');
+            const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
+            if (!token) return;
+
+            const payload = abandonedScheduledReport();
+            const url = `${baseUrl}/ai-interviews/${scheduledInterviewIdRef.current}/save-report/`;
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(payload),
+                keepalive: true,
+            }).catch(() => {});
+            localStorage.removeItem('active_scheduled_interview_id');
+        };
+
+        const onPageHide = () => flushAbandonedAttempt();
+        window.addEventListener('pagehide', onPageHide);
+        return () => {
+            flushAbandonedAttempt();
+            window.removeEventListener('pagehide', onPageHide);
+        };
+    }, [isScheduled, phase]);
 
     useEffect(() => {
         if (![PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase)) return undefined;
@@ -342,6 +376,25 @@ export default function AIPracticePage({ scheduled = false }) {
         else await finishInterview('');
     };
 
+    const abandonedScheduledReport = () => ({
+        total_score: 0,
+        communication: 0,
+        technical_depth: 0,
+        code_quality: 0,
+        optimization: 0,
+        problem_solving: 0,
+        warning_count: warningCountRef.current || 0,
+        disqualified: false,
+        disqualify_reason: 'Interview ended before completion',
+        strengths: [],
+        weaknesses: ['Interview was terminated before completion'],
+        improvement_plan: ['Complete the full interview flow'],
+        recommended_topics: [],
+        hiring_signal: 'No Hire',
+        skill_gap_analysis: {},
+        raw_ai_response: { note: 'Interview ended before completion' },
+    });
+
     const askQuestionWithConstraints = async (questionText) => {
         if (disqualifiedRef.current) return;
         setCurrentPrompt(questionText);
@@ -405,6 +458,7 @@ export default function AIPracticePage({ scheduled = false }) {
         try {
             if (isScheduled && scheduledInterviewIdRef.current) {
                 await startAIInterview(scheduledInterviewIdRef.current);
+                localStorage.setItem('active_scheduled_interview_id', String(scheduledInterviewIdRef.current));
             }
             const cameraOk = await requestCamera();
             if (!cameraOk) {
@@ -495,6 +549,8 @@ export default function AIPracticePage({ scheduled = false }) {
     };
 
     const finishInterview = async (explanation = '') => {
+        if (isFinishingRef.current) return;
+        isFinishingRef.current = true;
         setLoading(true);
         stopListening();
         try {
@@ -534,6 +590,7 @@ export default function AIPracticePage({ scheduled = false }) {
 
             setEvaluation(data);
             setPhase(PHASE.EVAL);
+            localStorage.removeItem('active_scheduled_interview_id');
             if (isScheduled) {
                 speak('Thank you for completing this interview. Your results have been sent to the interviewer.');
             } else {
@@ -541,7 +598,14 @@ export default function AIPracticePage({ scheduled = false }) {
             }
         } catch (err) {
             setError('Failed to evaluate.');
+            if (isScheduled && scheduledInterviewIdRef.current) {
+                try {
+                    await saveInterviewReport(scheduledInterviewIdRef.current, abandonedScheduledReport());
+                    localStorage.removeItem('active_scheduled_interview_id');
+                } catch (_) { /* no-op */ }
+            }
         } finally {
+            isFinishingRef.current = false;
             setLoading(false);
         }
     };

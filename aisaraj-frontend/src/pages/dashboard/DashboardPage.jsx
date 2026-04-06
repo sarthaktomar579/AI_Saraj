@@ -252,16 +252,18 @@ export default function DashboardPage() {
             )}
 
             {/* AI Scheduled Interviews */}
-            <h2 style={{ marginBottom: 16 }}>
+            <h2 style={{ margin: '24px 0 16px' }}>
                 {isInterviewer ? 'Scheduled AI Interviews' : 'My AI Interviews'}
             </h2>
             {aiInterviews.length === 0 ? (
-                <p style={{ color: 'var(--text-secondary)' }}>No AI interviews yet.</p>
+                <div className="card" style={{ marginBottom: 32 }}>
+                    <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No AI interviews yet.</p>
+                </div>
             ) : (
-                <div style={{ display: 'grid', gap: 12, marginBottom: 32 }}>
+                <div style={{ display: 'grid', gap: 14, marginBottom: 32 }}>
                     {aiInterviews.map(ai => (
                         <div key={ai.id}>
-                            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: 20 }}>
                                 <div style={{ flex: 1 }}>
                                     <strong>{ai.topic}</strong>
                                     {/* Student sees company name and interviewer */}
@@ -309,7 +311,7 @@ export default function DashboardPage() {
                                     : r.hiring_signal === 'Consider' ? '#f59e0b'
                                     : '#f87171';
                                 return (
-                                    <div className="card" style={{ marginTop: 4, padding: 20, borderLeft: `4px solid ${r.disqualified ? '#f87171' : '#10b981'}` }}>
+                                    <div className="card" style={{ marginTop: 10, padding: 20, borderLeft: `4px solid ${r.disqualified ? '#f87171' : '#10b981'}` }}>
                                         {r.disqualified && (
                                             <div style={{ background: '#7f1d1d', borderRadius: 10, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
                                                 <span style={{ fontSize: '1.5rem' }}>🚨</span>
@@ -357,7 +359,7 @@ export default function DashboardPage() {
                                 );
                             })()}
                             {isInterviewer && expandedReport === ai.id && reportData[ai.id] === null && (
-                                <div className="card" style={{ marginTop: 4, color: 'var(--text-secondary)' }}>No report available yet.</div>
+                                <div className="card" style={{ marginTop: 10, color: 'var(--text-secondary)' }}>No report available yet.</div>
                             )}
                         </div>
                     ))}

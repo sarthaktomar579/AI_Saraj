@@ -61,17 +61,16 @@ body::after {
 }
 
 body::before {
-  content: 'S-7';
-  right: clamp(72px, 8.6vw, 138px);
-  top: clamp(248px, 34vh, 340px);
-  font-size: clamp(0.6rem, 0.82vw, 0.74rem);
+  content: '';
 }
 
 body::after {
-  content: 'Sarthak-7';
-  right: clamp(52px, 6.4vw, 114px);
-  top: clamp(392px, 54vh, 528px);
-  font-size: clamp(0.62rem, 0.86vw, 0.8rem);
+  content: 'Sarthak-007';
+  right: clamp(120px, 13.5vw, 212px);
+  top: clamp(80px, 14.5vh, 148px);
+  font-size: clamp(0.56rem, 0.74vw, 0.68rem);
+  letter-spacing: 0.1em;
+  opacity: 0.42;
 }
 
 @supports not (mix-blend-mode: screen) {
