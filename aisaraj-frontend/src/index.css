@@ -62,15 +62,19 @@ body::after {
 
 body::before {
   content: '';
+  display: none;
 }
 
 body::after {
   content: 'Sarthak-007';
-  right: clamp(120px, 13.5vw, 212px);
-  top: clamp(80px, 14.5vh, 148px);
-  font-size: clamp(0.56rem, 0.74vw, 0.68rem);
+  right: clamp(142px, 15.7vw, 246px);
+  top: clamp(64px, 11.2vh, 118px);
+  font-size: clamp(0.52rem, 0.68vw, 0.62rem);
   letter-spacing: 0.1em;
-  opacity: 0.42;
+  color: rgba(64, 86, 158, 0.68);
+  text-shadow: none;
+  mix-blend-mode: multiply;
+  opacity: 0.82;
 }
 
 @supports not (mix-blend-mode: screen) {

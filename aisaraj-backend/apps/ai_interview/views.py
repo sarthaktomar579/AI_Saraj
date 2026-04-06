@@ -18,6 +18,51 @@ from .serializers import (
 from .services import AIInterviewService
 
 
+def _build_abandoned_report_fields():
+    """Default zero-score report for interrupted scheduled interviews."""
+    return dict(
+        total_score=0,
+        communication=0,
+        technical_depth=0,
+        code_quality=0,
+        optimization=0,
+        problem_solving=0,
+        warning_count=0,
+        disqualified=False,
+        disqualify_reason='Interview ended before completion',
+        strengths=[],
+        weaknesses=['Interview was terminated before completion'],
+        improvement_plan=['Complete the interview without leaving mid-way'],
+        recommended_topics=[],
+        hiring_signal='No Hire',
+        skill_gap_analysis={},
+        raw_ai_response={'note': 'Auto-closed abandoned in-progress interview'},
+    )
+
+
+def _auto_complete_abandoned_for_student(student):
+    """
+    Convert stale in-progress interviews to completed with zero report.
+    This ensures abandoned tabs do not keep interviews stuck in active state.
+    """
+    abandoned = AIScheduledInterview.objects.filter(
+        student=student,
+        status='in_progress',
+        report__isnull=True,
+    )
+    if not abandoned.exists():
+        return
+
+    defaults = _build_abandoned_report_fields()
+    for interview in abandoned:
+        AIInterviewReport.objects.update_or_create(
+            interview=interview,
+            defaults=defaults,
+        )
+        interview.status = 'completed'
+        interview.save(update_fields=['status'])
+
+
 class AIInterviewCreateView(generics.CreateAPIView):
     serializer_class = AIInterviewCreateSerializer
     permission_classes = [IsAuthenticated, IsInterviewer]
@@ -44,6 +89,8 @@ class AIInterviewListView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
+        if user.role == 'student':
+            _auto_complete_abandoned_for_student(user)
         return AIScheduledInterview.objects.filter(
             Q(interviewer=user) | Q(student=user)
         ).select_related('interviewer', 'student')
@@ -53,6 +100,19 @@ class AIInterviewDetailView(generics.RetrieveAPIView):
     serializer_class = AIInterviewDetailSerializer
     permission_classes = [IsAuthenticated]
     queryset = AIScheduledInterview.objects.all()
+
+    def retrieve(self, request, *args, **kwargs):
+        interview = self.get_object()
+        # Student-side safety: auto-close abandoned in-progress interview.
+        if request.user == interview.student and interview.status == 'in_progress' and not hasattr(interview, 'report'):
+            AIInterviewReport.objects.update_or_create(
+                interview=interview,
+                defaults=_build_abandoned_report_fields(),
+            )
+            interview.status = 'completed'
+            interview.save(update_fields=['status'])
+        serializer = self.get_serializer(interview)
+        return Response(serializer.data)
 
 
 class StudentListView(APIView):
