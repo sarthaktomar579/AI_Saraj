@@ -194,3 +194,28 @@ input:focus, select:focus, textarea:focus {
   background: linear-gradient(90deg, var(--accent), #8b5cf6);
   transition: width 0.6s ease;
 }
+
+.auth-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 24px clamp(16px, 5vw, 80px);
+}
+
+.auth-shell-inner {
+  width: min(50%, 640px);
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 960px) {
+  .auth-shell {
+    justify-content: center;
+    padding: 20px 14px;
+  }
+
+  .auth-shell-inner {
+    width: 100%;
+  }
+}
