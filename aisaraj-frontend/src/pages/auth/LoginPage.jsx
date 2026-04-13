@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -7,6 +7,13 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const { login } = useAuth();
     const navigate = useNavigate();
+
+    useEffect(() => {
+        document.body.classList.add('signin-background');
+        return () => {
+            document.body.classList.remove('signin-background');
+        };
+    }, []);
 
     const handleSubmit = async (e) => {
         e.preventDefault();

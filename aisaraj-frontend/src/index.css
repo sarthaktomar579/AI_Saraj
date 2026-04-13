@@ -66,6 +66,10 @@ body::before {
 }
 
 body::after {
+  content: '';
+}
+
+body.signin-background::after {
   content: 'Sarthak-007';
   right: clamp(154px, 17.4vw, 268px);
   top: clamp(64px, 9.6vh, 112px);
@@ -78,7 +82,7 @@ body::after {
 }
 
 @supports not (mix-blend-mode: screen) {
-  body::after {
+  body.signin-background::after {
     opacity: 0.35;
   }
 }
