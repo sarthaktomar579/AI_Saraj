@@ -4,6 +4,7 @@ Django base settings for AISaraj project.
 import os
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import parse_qs, unquote, urlparse
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -68,16 +69,54 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 # Database
-DATABASES = {
-    'default': {
-        'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
-        'NAME': os.getenv('DB_NAME', 'aisaraj'),
-        'USER': os.getenv('DB_USER', 'postgres'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
-        'HOST': os.getenv('DB_HOST', 'localhost'),
-        'PORT': os.getenv('DB_PORT', '5432'),
+def _database_from_url(database_url: str) -> dict:
+    parsed = urlparse(database_url)
+    scheme = (parsed.scheme or '').lower()
+    engine_map = {
+        'postgres': 'django.db.backends.postgresql',
+        'postgresql': 'django.db.backends.postgresql',
+        'mysql': 'django.db.backends.mysql',
+        'sqlite': 'django.db.backends.sqlite3',
     }
-}
+
+    db = {
+        'ENGINE': engine_map.get(scheme, 'django.db.backends.postgresql'),
+        'NAME': (parsed.path or '').lstrip('/'),
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname or '',
+        'PORT': str(parsed.port or ''),
+    }
+
+    query = parse_qs(parsed.query or '')
+    options = {}
+    if query.get('sslmode'):
+        options['sslmode'] = query['sslmode'][0]
+    if query.get('channel_binding'):
+        options['channel_binding'] = query['channel_binding'][0]
+    if options:
+        db['OPTIONS'] = options
+
+    return db
+
+
+_database_url = os.getenv('DATABASE_URL', '').strip()
+if _database_url:
+    DATABASES = {'default': _database_from_url(_database_url)}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.postgresql'),
+            'NAME': os.getenv('DB_NAME', 'aisaraj'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', 'postgres'),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
+    }
+    _db_sslmode = os.getenv('DB_SSLMODE', '').strip()
+    if _db_sslmode:
+        DATABASES['default']['OPTIONS'] = {'sslmode': _db_sslmode}
 
 # Custom user model
 AUTH_USER_MODEL = 'accounts.User'

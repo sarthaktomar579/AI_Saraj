@@ -5,7 +5,6 @@ import { getAIInterview, startAIInterview, saveInterviewReport } from '../../api
 import CodeEditor from '../../components/CodeEditor/CodeEditor';
 import { useCodeExecution } from '../../hooks/useCodeExecution';
 import { useSpeech } from '../../hooks/useSpeech';
-import * as faceapi from 'face-api.js';
 import './AIPracticePage.css';
 
 const PHASE = { SETUP: 'setup', VERBAL: 'verbal', CODING: 'coding', EXPLAIN: 'explain', EVAL: 'eval' };
@@ -77,11 +76,43 @@ export default function AIPracticePage({ scheduled = false }) {
     const warningCountRef = useRef(0);
     const warningHideTimeoutRef = useRef(null);
     const isFinishingRef = useRef(false);
+    const faceApiRef = useRef(null);
 
     const { result, running, execute } = useCodeExecution();
     const speech = useSpeech();
     const { isSpeaking, isListening, speak, stopListening, getFinalTranscript } = speech;
     const hasDSA = selectedTracks.includes('dsa');
+
+    const ensureFaceApiLoaded = useCallback(async () => {
+        if (faceApiRef.current) return faceApiRef.current;
+        if (window.faceapi) {
+            faceApiRef.current = window.faceapi;
+            return faceApiRef.current;
+        }
+
+        const existing = document.getElementById('faceapi-script');
+        if (existing) {
+            await new Promise((resolve, reject) => {
+                if (window.faceapi) return resolve();
+                existing.addEventListener('load', () => resolve(), { once: true });
+                existing.addEventListener('error', () => reject(new Error('Failed to load face-api script')), { once: true });
+            });
+        } else {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.id = 'faceapi-script';
+                script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+                script.async = true;
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Failed to load face-api script'));
+                document.body.appendChild(script);
+            });
+        }
+
+        if (!window.faceapi) throw new Error('face-api global not available');
+        faceApiRef.current = window.faceapi;
+        return faceApiRef.current;
+    }, []);
 
     useEffect(() => {
         if (!isScheduled) return;
@@ -262,16 +293,27 @@ export default function AIPracticePage({ scheduled = false }) {
         let checking = false;
         let modelReady = false;
         let cancelled = false;
+        let faceapiLib = null;
+        let detectorOptions = null;
 
         const loadModel = async () => {
-            if (faceapi.nets.tinyFaceDetector.isLoaded) {
+            try {
+                faceapiLib = await ensureFaceApiLoaded();
+            } catch (err) {
+                console.error('[Proctor] Failed to load face-api script:', err);
+                return;
+            }
+
+            if (faceapiLib.nets.tinyFaceDetector.isLoaded) {
                 modelReady = true;
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
                 console.log('[Proctor] face-api model already loaded');
                 return;
             }
             try {
-                await faceapi.nets.tinyFaceDetector.loadFromUri('/models');
+                await faceapiLib.nets.tinyFaceDetector.loadFromUri('/models');
                 modelReady = true;
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
                 console.log('[Proctor] face-api model loaded successfully');
             } catch (err) {
                 console.error('[Proctor] Failed to load face-api model:', err);
@@ -310,15 +352,13 @@ export default function AIPracticePage({ scheduled = false }) {
             }
         };
 
-        const opts = new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
-
         const checkFace = async () => {
-            if (checking || !modelReady || disqualifiedRef.current || !videoRef.current || cancelled) return;
+            if (checking || !modelReady || !faceapiLib || !detectorOptions || disqualifiedRef.current || !videoRef.current || cancelled) return;
             const video = videoRef.current;
             if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
             checking = true;
             try {
-                const detection = await faceapi.detectSingleFace(video, opts);
+                const detection = await faceapiLib.detectSingleFace(video, detectorOptions);
                 const offscreen = !detection;
                 proctorMissCountRef.current = offscreen ? proctorMissCountRef.current + 1 : 0;
                 if (proctorMissCountRef.current >= PROCTOR_MISS_LIMIT) {
@@ -342,7 +382,7 @@ export default function AIPracticePage({ scheduled = false }) {
                 proctorIntervalRef.current = null;
             }
         };
-    }, [phase, cameraStream, stopListening, speak]);
+    }, [phase, cameraStream, stopListening, speak, ensureFaceApiLoaded]);
 
     const requestCamera = async () => {
         try {
