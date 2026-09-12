@@ -12,8 +12,14 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:8000",
-        "http://127.0.0.1:8000"
+        "http://127.0.0.1:8000",
+        "https://ai-saraj.vercel.app",
+        "https://ai-saraj-z6e3.vercel.app",
     ]
+    
+    # Google OAuth
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
     
     # Database
     DATABASE_URL: str

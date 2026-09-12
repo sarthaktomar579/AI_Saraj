@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function RegisterPage() {
     const [form, setForm] = useState({ username: '', email: '', password: '', role: 'student', first_name: '', last_name: '' });
     const [error, setError] = useState('');
-    const { register } = useAuth();
+    const { register, loginWithGoogle } = useAuth();
     const navigate = useNavigate();
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            setError('');
+            await loginWithGoogle(credentialResponse.credential, form.role);
+            navigate('/dashboard');
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Google registration failed');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -51,8 +62,27 @@ export default function RegisterPage() {
                             AISaraj
                         </span>
                     </div>
-                    <h2 style={{ textAlign: 'center', marginBottom: 20, fontSize: '1.4rem' }}>Create Account</h2>
+                    <h2 style={{ textAlign: 'center', marginBottom: 16, fontSize: '1.4rem' }}>Create Account</h2>
                     {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
+                    
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => setError('Google sign-up was unsuccessful')}
+                            theme="filled_black"
+                            shape="pill"
+                            size="large"
+                            text="signup_with"
+                            width="340"
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', margin: '14px 0 18px', gap: 12 }}>
+                        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>or register with email</span>
+                        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                    </div>
+
                     <form onSubmit={handleSubmit}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                             <div><label>First Name</label><input value={form.first_name} onChange={e => update('first_name', e.target.value)} /></div>

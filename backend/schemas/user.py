@@ -38,3 +38,7 @@ class Token(BaseModel):
 
 class TokenPayload(BaseModel):
     sub: Optional[int] = None
+
+class GoogleLoginRequest(BaseModel):
+    credential: str
+    role: Optional[str] = "student"

@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { login as loginApi, register as registerApi, getProfile } from '../api/auth';
+import { login as loginApi, register as registerApi, getProfile, googleLogin } from '../api/auth';
 
 export const AuthContext = createContext(null);
 
@@ -30,6 +30,13 @@ export function AuthProvider({ children }) {
         await fetchProfile();
     };
 
+    const loginWithGoogle = async (credential, role = 'student') => {
+        const { data } = await googleLogin(credential, role);
+        localStorage.setItem('access_token', data.access_token);
+        localStorage.removeItem('refresh_token');
+        await fetchProfile();
+    };
+
     const register = async (userData) => {
         await registerApi(userData);
         await login({ username: userData.username, password: userData.password });
@@ -42,7 +49,7 @@ export function AuthProvider({ children }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

@@ -13,3 +13,4 @@ export const login = (data) => {
 // getProfile doesn't exist on the backend yet, but formatting the path anyway
 export const getProfile = () => client.get('/auth/me');
 export const updateProfile = (data) => client.put('/auth/me', data);
+export const googleLogin = (credential, role = 'student') => client.post('/auth/google', { credential, role });

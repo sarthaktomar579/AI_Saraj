@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function LoginPage() {
     const [form, setForm] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
-    const { login } = useAuth();
+    const { login, loginWithGoogle } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -23,6 +24,16 @@ export default function LoginPage() {
             navigate('/dashboard');
         } catch {
             setError('Invalid credentials');
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            setError('');
+            await loginWithGoogle(credentialResponse.credential);
+            navigate('/dashboard');
+        } catch (err) {
+            setError(err.response?.data?.detail || 'Google sign-in failed');
         }
     };
 
@@ -48,8 +59,27 @@ export default function LoginPage() {
                             <span style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AISaraj</span>
                         </h1>
                     </div>
-                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 24 }}>Sign in to your account</p>
+                    <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 20 }}>Sign in to your account</p>
                     {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
+                    
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                        <GoogleLogin
+                            onSuccess={handleGoogleSuccess}
+                            onError={() => setError('Google sign-in was unsuccessful')}
+                            theme="filled_black"
+                            shape="pill"
+                            size="large"
+                            text="signin_with"
+                            width="340"
+                        />
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', margin: '14px 0 18px', gap: 12 }}>
+                        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>or continue with credentials</span>
+                        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+                    </div>
+
                     <form onSubmit={handleSubmit}>
                         <div style={{ marginBottom: 16 }}>
                             <label>Username</label>

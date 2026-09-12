@@ -3,10 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from core.database import get_db
 from core.security import verify_password, get_password_hash, create_access_token
+from core.config import settings
 from models.user import User
-from schemas.user import UserCreate, User as UserSchema, Token, UserUpdate
+from schemas.user import UserCreate, User as UserSchema, Token, UserUpdate, GoogleLoginRequest
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Any
+import secrets
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 from api.deps import get_current_user
 
 router = APIRouter()
@@ -45,6 +49,76 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=400, detail="Incorrect username or password")
         
+    access_token = create_access_token(subject=user.id)
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@router.post("/google", response_model=Token)
+@router.post("/google/", response_model=Token)
+async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(get_db)) -> Any:
+    try:
+        # Verify the Google ID token with Google's public keys
+        idinfo = id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID
+        )
+        email = idinfo.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Google token does not contain email")
+        first_name = idinfo.get("given_name", "")
+        last_name = idinfo.get("family_name", "")
+        picture = idinfo.get("picture", None)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid Google token: {str(e)}")
+
+    # Check if user with this email already exists
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalars().first()
+
+    if not user:
+        # Create a unique username based on email
+        base_username = email.split("@")[0].replace(".", "_")
+        username = base_username
+        suffix = 1
+        while True:
+            existing = await db.execute(select(User).where(User.username == username))
+            if not existing.scalars().first():
+                break
+            username = f"{base_username}_{suffix}"
+            suffix += 1
+
+        # Create user with an unguessable password hash
+        user = User(
+            email=email,
+            username=username,
+            password=get_password_hash(secrets.token_urlsafe(32)),
+            first_name=first_name,
+            last_name=last_name,
+            role=payload.role or "student",
+            avatar_url=picture,
+            is_verified=True,
+            is_active=True,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+    else:
+        # Sync profile image if not present
+        changed = False
+        if not user.avatar_url and picture:
+            user.avatar_url = picture
+            changed = True
+        if not user.first_name and first_name:
+            user.first_name = first_name
+            changed = True
+        if not user.last_name and last_name:
+            user.last_name = last_name
+            changed = True
+        if changed:
+            db.add(user)
+            await db.commit()
+            await db.refresh(user)
+
     access_token = create_access_token(subject=user.id)
     return {"access_token": access_token, "token_type": "bearer"}
 
