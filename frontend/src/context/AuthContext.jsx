@@ -30,8 +30,11 @@ export function AuthProvider({ children }) {
         await fetchProfile();
     };
 
-    const loginWithGoogle = async (credential, role = 'student') => {
-        const { data } = await googleLogin(credential, role);
+    const loginWithGoogle = async (tokenData, role = 'student') => {
+        const payload = typeof tokenData === 'string' 
+            ? { credential: tokenData, role } 
+            : { ...tokenData, role };
+        const { data } = await googleLogin(payload);
         localStorage.setItem('access_token', data.access_token);
         localStorage.removeItem('refresh_token');
         await fetchProfile();

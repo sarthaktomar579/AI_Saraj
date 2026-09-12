@@ -9,6 +9,8 @@ from schemas.user import UserCreate, User as UserSchema, Token, UserUpdate, Goog
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Any
 import secrets
+import json
+import urllib.request
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from api.deps import get_current_user
@@ -56,15 +58,27 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
 @router.post("/google/", response_model=Token)
 async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(get_db)) -> Any:
     try:
-        # Verify the Google ID token with Google's public keys
-        idinfo = id_token.verify_oauth2_token(
-            payload.credential,
-            google_requests.Request(),
-            settings.GOOGLE_CLIENT_ID
-        )
+        if payload.access_token:
+            # Query Google UserInfo API using access_token
+            req = urllib.request.Request(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                headers={"Authorization": f"Bearer {payload.access_token}"}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                idinfo = json.loads(response.read().decode("utf-8"))
+        elif payload.credential:
+            # Verify the Google ID token with Google's public keys
+            idinfo = id_token.verify_oauth2_token(
+                payload.credential,
+                google_requests.Request(),
+                settings.GOOGLE_CLIENT_ID
+            )
+        else:
+            raise HTTPException(status_code=400, detail="Either credential or access_token must be provided")
+
         email = idinfo.get("email")
         if not email:
-            raise HTTPException(status_code=400, detail="Google token does not contain email")
+            raise HTTPException(status_code=400, detail="Google account does not contain an email")
         first_name = idinfo.get("given_name", "")
         last_name = idinfo.get("family_name", "")
         picture = idinfo.get("picture", None)

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { GoogleLogin } from '@react-oauth/google';
+import GoogleSignInButton from '../../components/common/GoogleSignInButton';
 import { useAuth } from '../../hooks/useAuth';
 
 export default function LoginPage() {
@@ -27,10 +27,10 @@ export default function LoginPage() {
         }
     };
 
-    const handleGoogleSuccess = async (credentialResponse) => {
+    const handleGoogleSuccess = async (tokenData) => {
         try {
             setError('');
-            await loginWithGoogle(credentialResponse.credential);
+            await loginWithGoogle(tokenData);
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.detail || 'Google sign-in failed');
@@ -62,15 +62,11 @@ export default function LoginPage() {
                     <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 20 }}>Sign in to your account</p>
                     {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
                     
-                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
-                        <GoogleLogin
+                    <div style={{ marginBottom: 14 }}>
+                        <GoogleSignInButton
                             onSuccess={handleGoogleSuccess}
                             onError={() => setError('Google sign-in was unsuccessful')}
-                            theme="filled_black"
-                            shape="pill"
-                            size="large"
-                            text="signin_with"
-                            width="340"
+                            text="Sign in with Google"
                         />
                     </div>
 
