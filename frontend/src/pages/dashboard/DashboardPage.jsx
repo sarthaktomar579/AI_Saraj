@@ -29,8 +29,10 @@ export default function DashboardPage() {
     const [expandedReport, setExpandedReport] = useState(null);
     const [reportData, setReportData] = useState({});
     const [expandedPracticeReport, setExpandedPracticeReport] = useState(null);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
     const isInterviewer = user?.role === 'interviewer' || user?.role === 'admin';
+    const displayName = (user?.first_name || user?.username || '').trim().split(' ')[0];
 
     useEffect(() => {
         listInterviews().then(r => setInterviews(r.data.results || r.data)).catch(() => {});
@@ -122,18 +124,34 @@ export default function DashboardPage() {
     const deadlinePassed = (deadline) => deadline && new Date(deadline) < new Date();
 
     return (
-        <div className="container" style={{ maxWidth: 960, margin: '0 auto', padding: 32 }}>
-            <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(10, 10, 22, 0.75)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '16px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
+        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+            <header style={{
+                position: 'sticky',
+                top: 0,
+                zIndex: 100,
+                width: '100%',
+                background: 'rgba(10, 10, 22, 0.85)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                padding: '14px 40px',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                boxSizing: 'border-box'
+            }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <img src="/handshake_logo.png" alt="AISaraj Logo" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '50%', border: '2px solid rgba(139, 92, 246, 0.35)', boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' }} />
-                    <h1><span className="text-gradient">AISaraj</span></h1>
+                    <img src="/handshake_logo.png" alt="AISaraj Logo" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: '50%', border: '2px solid rgba(139, 92, 246, 0.35)', boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' }} />
+                    <h1 style={{ margin: 0, fontSize: '1.75rem' }}><span className="text-gradient">AISaraj</span></h1>
                 </div>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
                     <span className="badge badge-success">{user?.role}</span>
-                    <span>{user?.first_name || user?.username}</span>
-                    <button className="btn-secondary" onClick={logout}>Logout</button>
+                    <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{displayName}</span>
+                    <button className="btn-secondary" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
                 </div>
             </header>
+
+            <div className="container" style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px', width: '100%', flex: 1 }}>
 
             {/* Quick Actions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
@@ -492,6 +510,59 @@ export default function DashboardPage() {
                         ))}
                     </div>
                 </>
+            )}
+            </div>
+
+            {/* Logout Confirmation Modal */}
+            {showLogoutConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0, 0, 0, 0.7)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    zIndex: 2000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20
+                }}>
+                    <div className="card" style={{
+                        maxWidth: 400,
+                        width: '100%',
+                        padding: '28px 32px',
+                        textAlign: 'center',
+                        borderRadius: 16,
+                        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)'
+                    }}>
+                        <h3 style={{ margin: '0 0 8px', fontSize: '1.25rem' }}>Confirm Logout</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: '0 0 24px' }}>
+                            Are you sure you want to log out of AISaraj?
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                            <button 
+                                type="button"
+                                className="btn-secondary" 
+                                style={{ flex: 1, padding: '10px 18px' }}
+                                onClick={() => setShowLogoutConfirm(false)}
+                            >
+                                Cancel
+                            </button>
+                            <button 
+                                type="button"
+                                className="btn-primary" 
+                                style={{ flex: 1, padding: '10px 18px', background: 'linear-gradient(135deg, #ef4444, #dc2626)' }}
+                                onClick={() => {
+                                    setShowLogoutConfirm(false);
+                                    logout();
+                                    navigate('/login');
+                                }}
+                            >
+                                Logout
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

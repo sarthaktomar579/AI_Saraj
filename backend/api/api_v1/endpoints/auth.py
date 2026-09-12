@@ -82,8 +82,9 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
         email = idinfo.get("email")
         if not email:
             raise HTTPException(status_code=400, detail="Google account does not contain an email")
-        first_name = idinfo.get("given_name", "")
-        last_name = idinfo.get("family_name", "")
+        raw_first_name = (idinfo.get("given_name") or idinfo.get("name") or "").strip()
+        first_name = raw_first_name.split()[0] if raw_first_name else ""
+        last_name = (idinfo.get("family_name") or "").strip()
         picture = idinfo.get("picture", None)
     except urllib.error.HTTPError as he:
         error_body = he.read().decode("utf-8", errors="ignore")
