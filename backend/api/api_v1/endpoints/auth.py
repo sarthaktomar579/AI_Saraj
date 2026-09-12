@@ -62,7 +62,10 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
             # Query Google UserInfo API using access_token
             req = urllib.request.Request(
                 "https://www.googleapis.com/oauth2/v3/userinfo",
-                headers={"Authorization": f"Bearer {payload.access_token}"}
+                headers={
+                    "Authorization": f"Bearer {payload.access_token}",
+                    "User-Agent": "AISaraj-Auth/1.0",
+                }
             )
             with urllib.request.urlopen(req, timeout=10) as response:
                 idinfo = json.loads(response.read().decode("utf-8"))
@@ -82,59 +85,69 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
         first_name = idinfo.get("given_name", "")
         last_name = idinfo.get("family_name", "")
         picture = idinfo.get("picture", None)
+    except urllib.error.HTTPError as he:
+        error_body = he.read().decode("utf-8", errors="ignore")
+        print(f"[Google Auth HTTPError]: {he.code} - {error_body}", flush=True)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Google verification failed: {error_body or he.reason}")
     except Exception as e:
+        print(f"[Google Auth Exception]: {type(e).__name__} - {str(e)}", flush=True)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid Google token: {str(e)}")
 
-    # Check if user with this email already exists
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalars().first()
+    try:
+        # Check if user with this email already exists
+        result = await db.execute(select(User).where(User.email == email))
+        user = result.scalars().first()
 
-    if not user:
-        # Create a unique username based on email
-        base_username = email.split("@")[0].replace(".", "_")
-        username = base_username
-        suffix = 1
-        while True:
-            existing = await db.execute(select(User).where(User.username == username))
-            if not existing.scalars().first():
-                break
-            username = f"{base_username}_{suffix}"
-            suffix += 1
+        if not user:
+            # Create a unique username based on email
+            base_username = email.split("@")[0].replace(".", "_")
+            username = base_username
+            suffix = 1
+            while True:
+                existing = await db.execute(select(User).where(User.username == username))
+                if not existing.scalars().first():
+                    break
+                username = f"{base_username}_{suffix}"
+                suffix += 1
 
-        # Create user with an unguessable password hash
-        user = User(
-            email=email,
-            username=username,
-            password=get_password_hash(secrets.token_urlsafe(32)),
-            first_name=first_name,
-            last_name=last_name,
-            role=payload.role or "student",
-            avatar_url=picture,
-            is_verified=True,
-            is_active=True,
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
-    else:
-        # Sync profile image if not present
-        changed = False
-        if not user.avatar_url and picture:
-            user.avatar_url = picture
-            changed = True
-        if not user.first_name and first_name:
-            user.first_name = first_name
-            changed = True
-        if not user.last_name and last_name:
-            user.last_name = last_name
-            changed = True
-        if changed:
+            # Create user with an unguessable password hash
+            user = User(
+                email=email,
+                username=username,
+                password=get_password_hash(secrets.token_urlsafe(32)),
+                first_name=first_name,
+                last_name=last_name,
+                role=payload.role or "student",
+                avatar_url=picture,
+                is_verified=True,
+                is_active=True,
+            )
             db.add(user)
             await db.commit()
             await db.refresh(user)
+        else:
+            # Sync profile image and names if not present
+            changed = False
+            if not user.avatar_url and picture:
+                user.avatar_url = picture
+                changed = True
+            if not user.first_name and first_name:
+                user.first_name = first_name
+                changed = True
+            if not user.last_name and last_name:
+                user.last_name = last_name
+                changed = True
+            if changed:
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
 
-    access_token = create_access_token(subject=user.id)
-    return {"access_token": access_token, "token_type": "bearer"}
+        access_token = create_access_token(subject=user.id)
+        return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as db_err:
+        await db.rollback()
+        print(f"[Google Auth DB Error]: {db_err}", flush=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Database error during Google sign-in: {str(db_err)}")
 
 @router.get("/me", response_model=UserSchema)
 @router.get("/me/", response_model=UserSchema)

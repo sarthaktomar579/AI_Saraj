@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, func, Text
 from core.database import Base
 
 class User(Base):
@@ -20,7 +20,7 @@ class User(Base):
     
     # Custom fields
     role = Column(String(20), default='student')
-    avatar_url = Column(String(200), nullable=True)
+    avatar_url = Column(Text, nullable=True)
     phone = Column(String(15), nullable=True)
     is_verified = Column(Boolean, default=False)
     updated_at = Column(DateTime, onupdate=func.now(), default=func.now())

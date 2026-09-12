@@ -22,7 +22,17 @@ export default function RegisterPage() {
             await loginWithGoogle(tokenData, form.role);
             navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.detail || 'Google registration failed');
+            console.error('Google registration error:', err);
+            const detail = err.response?.data?.detail;
+            let msg = 'Google registration failed';
+            if (typeof detail === 'string') {
+                msg = detail;
+            } else if (Array.isArray(detail) && detail.length > 0) {
+                msg = `${detail[0].loc?.slice(-1)[0] || 'Field'}: ${detail[0].msg}`;
+            } else if (err.message) {
+                msg = err.message;
+            }
+            setError(msg);
         }
     };
 

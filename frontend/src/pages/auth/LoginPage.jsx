@@ -33,7 +33,17 @@ export default function LoginPage() {
             await loginWithGoogle(tokenData);
             navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data?.detail || 'Google sign-in failed');
+            console.error('Google login error:', err);
+            const detail = err.response?.data?.detail;
+            let msg = 'Google sign-in failed';
+            if (typeof detail === 'string') {
+                msg = detail;
+            } else if (Array.isArray(detail) && detail.length > 0) {
+                msg = `${detail[0].loc?.slice(-1)[0] || 'Field'}: ${detail[0].msg}`;
+            } else if (err.message) {
+                msg = err.message;
+            }
+            setError(msg);
         }
     };
 
