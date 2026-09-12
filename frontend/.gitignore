@@ -1,0 +1,5 @@
+# AISaraj Frontend
+node_modules/
+build/
+.env
+.env.local
