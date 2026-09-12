@@ -660,8 +660,8 @@ export default function AIPracticePage({ scheduled = false }) {
     if (phase === PHASE.EVAL && evaluation && isScheduled) {
         return (
             <div className="eval-page">
-                <div className="eval-header">
-                    <img src="/ai-saraj-avatar.png" alt="AI Saraj" className="eval-avatar" />
+                <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                    <img src="/handshake_logo.png" alt="AI Saraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
                     <div><h1>Interview Complete</h1><p className="eval-subtitle">Thank you for your time!</p></div>
                 </div>
                 <div className="card" style={{ textAlign: 'center', padding: '40px 32px', maxWidth: 520, margin: '0 auto' }}>
@@ -695,8 +695,8 @@ export default function AIPracticePage({ scheduled = false }) {
         ];
         return (
             <div className="eval-page">
-                <div className="eval-header">
-                    <img src="/ai-saraj-avatar.png" alt="AI Saraj" className="eval-avatar" />
+                <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                    <img src="/handshake_logo.png" alt="AI Saraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
                     <div><h1>Interview Complete</h1><p className="eval-subtitle">AI Saraj's Evaluation</p></div>
                 </div>
                 <div className="card eval-score-card">
@@ -736,7 +736,7 @@ export default function AIPracticePage({ scheduled = false }) {
         return (
             <div className="start-screen">
                 <div className="start-card card">
-                    <img src="/ai-saraj-avatar.png" alt="AI Saraj" className="start-avatar" />
+                    <img src="/handshake_logo.png" alt="AI Saraj" className="start-avatar" />
                     <h1 className="start-title">Scheduled AI Interview</h1>
                     <p className="start-subtitle">Conducted by AI Saraj</p>
                     {si?.company_name && <p style={{ color: '#8b5cf6', fontWeight: 600, fontSize: '1.1rem', margin: '8px 0' }}>{si.company_name}</p>}
@@ -778,7 +778,7 @@ export default function AIPracticePage({ scheduled = false }) {
         return (
             <div className="start-screen">
                 <div className="start-card card">
-                    <img src="/ai-saraj-avatar.png" alt="AI Saraj" className="start-avatar" />
+                    <img src="/handshake_logo.png" alt="AI Saraj" className="start-avatar" />
                     <h1 className="start-title">Meet AI Saraj</h1>
                     <p className="start-subtitle">Your AI Technical Interviewer</p>
                     <p className="start-desc">Select one or more interview types. AI will run a 10-minute interview. If DSA is selected, you will also get a 15-minute coding round.</p>

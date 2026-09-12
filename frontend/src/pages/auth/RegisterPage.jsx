@@ -33,9 +33,25 @@ export default function RegisterPage() {
         <div className="auth-shell">
             <div className="auth-shell-inner">
                 <div className="card" style={{ width: 440, maxWidth: '100%' }}>
-                    <h1 style={{ textAlign: 'center', marginBottom: 24 }}>
-                        <span style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Create Account</span>
-                    </h1>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+                        <img 
+                            src="/handshake_logo.png" 
+                            alt="AISaraj Logo" 
+                            style={{ 
+                                width: 56, 
+                                height: 56, 
+                                objectFit: 'cover', 
+                                borderRadius: '50%', 
+                                border: '2px solid rgba(139, 92, 246, 0.4)',
+                                boxShadow: '0 0 20px rgba(124, 58, 237, 0.45)',
+                                marginBottom: 8
+                            }} 
+                        />
+                        <span style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.01em', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            AISaraj
+                        </span>
+                    </div>
+                    <h2 style={{ textAlign: 'center', marginBottom: 20, fontSize: '1.4rem' }}>Create Account</h2>
                     {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
                     <form onSubmit={handleSubmit}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>

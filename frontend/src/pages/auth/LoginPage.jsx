@@ -30,9 +30,24 @@ export default function LoginPage() {
         <div className="auth-shell">
             <div className="auth-shell-inner">
                 <div className="card" style={{ width: 400, maxWidth: '100%' }}>
-                    <h1 style={{ textAlign: 'center', marginBottom: 8 }}>
-                        <span style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AISaraj</span>
-                    </h1>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+                        <img 
+                            src="/handshake_logo.png" 
+                            alt="AISaraj Logo" 
+                            style={{ 
+                                width: 68, 
+                                height: 68, 
+                                objectFit: 'cover', 
+                                borderRadius: '50%', 
+                                border: '2px solid rgba(139, 92, 246, 0.4)',
+                                boxShadow: '0 0 24px rgba(124, 58, 237, 0.5)',
+                                marginBottom: 12
+                            }} 
+                        />
+                        <h1 style={{ textAlign: 'center', margin: 0, fontSize: '2rem' }}>
+                            <span style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AISaraj</span>
+                        </h1>
+                    </div>
                     <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 24 }}>Sign in to your account</p>
                     {error && <p style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</p>}
                     <form onSubmit={handleSubmit}>

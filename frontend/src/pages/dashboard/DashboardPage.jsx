@@ -125,7 +125,7 @@ export default function DashboardPage() {
         <div className="container" style={{ maxWidth: 960, margin: '0 auto', padding: 32 }}>
             <header style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(10, 10, 22, 0.75)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', padding: '16px 0', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <img src="/handshake_logo.png" alt="Logo" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '50%', filter: 'drop-shadow(0 0 10px rgba(124, 58, 237, 0.4))' }} />
+                    <img src="/handshake_logo.png" alt="AISaraj Logo" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: '50%', border: '2px solid rgba(139, 92, 246, 0.35)', boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' }} />
                     <h1><span className="text-gradient">AISaraj</span></h1>
                 </div>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

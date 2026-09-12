@@ -58,7 +58,25 @@ export default function AIInterviewPage() {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="card" style={{ width: 460, textAlign: 'center' }}>
-                    <h1 style={{ marginBottom: 8 }}>AI Interview</h1>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+                        <img 
+                            src="/handshake_logo.png" 
+                            alt="AISaraj Logo" 
+                            style={{ 
+                                width: 56, 
+                                height: 56, 
+                                objectFit: 'cover', 
+                                borderRadius: '50%', 
+                                border: '2px solid rgba(139, 92, 246, 0.4)',
+                                boxShadow: '0 0 20px rgba(124, 58, 237, 0.45)',
+                                marginBottom: 8
+                            }} 
+                        />
+                        <span style={{ fontSize: '1.25rem', fontWeight: 700, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                            AISaraj
+                        </span>
+                    </div>
+                    <h1 style={{ marginBottom: 8, fontSize: '1.75rem' }}>AI Interview</h1>
                     {interview.company_name && (
                         <p style={{ color: '#8b5cf6', fontWeight: 600, marginBottom: 8 }}>🏢 {interview.company_name}</p>
                     )}

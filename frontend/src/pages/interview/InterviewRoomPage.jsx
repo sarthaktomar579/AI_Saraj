@@ -24,6 +24,23 @@ export default function InterviewRoomPage() {
 
     return (
         <div className="container">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                <img 
+                    src="/handshake_logo.png" 
+                    alt="AISaraj Logo" 
+                    style={{ 
+                        width: 40, 
+                        height: 40, 
+                        objectFit: 'cover', 
+                        borderRadius: '50%', 
+                        border: '2px solid rgba(139, 92, 246, 0.4)',
+                        boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' 
+                    }} 
+                />
+                <span style={{ fontSize: '1.25rem', fontWeight: 700, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                    AISaraj
+                </span>
+            </div>
             <h1 style={{ marginBottom: 8 }}>{interview.title}</h1>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>{interview.description}</p>
 
