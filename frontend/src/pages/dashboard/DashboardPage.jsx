@@ -34,9 +34,21 @@ export default function DashboardPage() {
         return sessionStorage.getItem('prompt_role_selection') === 'true';
     });
     const [roleUpdating, setRoleUpdating] = useState(false);
+    const [candidateSearch, setCandidateSearch] = useState('');
+    const [isCandidateDropdownOpen, setIsCandidateDropdownOpen] = useState(false);
 
     const isInterviewer = user?.role === 'interviewer' || user?.role === 'admin';
     const displayName = (user?.first_name || user?.username || '').trim().split(' ')[0];
+
+    const selectedStudent = students.find(s => String(s.id) === String(scheduleForm.student));
+    const filteredStudents = students.filter(s => {
+        const q = candidateSearch.toLowerCase().trim();
+        if (!q) return true;
+        const name = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+        const username = (s.username || '').toLowerCase();
+        const email = (s.email || '').toLowerCase();
+        return name.includes(q) || username.includes(q) || email.includes(q);
+    });
 
     const handleSelectRole = async (selectedRole) => {
         setRoleUpdating(true);
@@ -65,6 +77,8 @@ export default function DashboardPage() {
 
     const openScheduleForm = async () => {
         setShowSchedule(true);
+        setCandidateSearch('');
+        setIsCandidateDropdownOpen(false);
         try {
             const { data } = await listStudents();
             setStudents(data);
@@ -213,16 +227,186 @@ export default function DashboardPage() {
                     <div style={{ background: 'var(--bg-secondary, #1e1e2e)', borderRadius: 16, padding: 32, width: '90%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto' }}>
                         <h2 style={{ marginBottom: 20 }}>Schedule AI Interview</h2>
                         <form onSubmit={handleSchedule}>
-                            <label style={{ display: 'block', marginBottom: 12 }}>
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Candidate</span>
-                                <select value={scheduleForm.student} onChange={e => setScheduleForm(f => ({ ...f, student: e.target.value }))}
-                                    style={{ width: '100%', padding: 10, borderRadius: 8, background: 'var(--bg-primary, #12121a)', color: '#fff', border: '1px solid #333', marginTop: 4 }}>
-                                    <option value="">Select candidate...</option>
-                                    {students.map(s => (
-                                        <option key={s.id} value={s.id}>{s.first_name} {s.last_name} ({s.username})</option>
-                                    ))}
-                                </select>
-                            </label>
+                            {/* Searchable Candidate Selection */}
+                            <div style={{ marginBottom: 14, position: 'relative' }}>
+                                <label style={{ display: 'block', marginBottom: 6 }}>
+                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                        Candidate
+                                    </span>
+                                </label>
+                                
+                                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                                    <div style={{ position: 'absolute', left: 12, display: 'flex', alignItems: 'center', pointerEvents: 'none', color: 'var(--text-secondary)' }}>
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="11" cy="11" r="8" />
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                        </svg>
+                                    </div>
+                                    <input 
+                                        type="text"
+                                        value={candidateSearch}
+                                        onChange={e => {
+                                            setCandidateSearch(e.target.value);
+                                            setIsCandidateDropdownOpen(true);
+                                        }}
+                                        onFocus={() => setIsCandidateDropdownOpen(true)}
+                                        placeholder={selectedStudent ? `${selectedStudent.first_name || ''} ${selectedStudent.last_name || ''} (@${selectedStudent.username})` : "Search candidate by name, username or email..."}
+                                        style={{
+                                            width: '100%',
+                                            padding: '10px 36px 10px 34px',
+                                            borderRadius: 8,
+                                            background: 'var(--bg-primary, #12121a)',
+                                            color: '#fff',
+                                            border: isCandidateDropdownOpen ? '1px solid #8b5cf6' : '1px solid #333',
+                                            fontSize: '0.9rem',
+                                            transition: 'all 0.2s',
+                                            boxShadow: isCandidateDropdownOpen ? '0 0 12px rgba(139, 92, 246, 0.25)' : 'none'
+                                        }}
+                                    />
+                                    {scheduleForm.student ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setScheduleForm(f => ({ ...f, student: '' }));
+                                                setCandidateSearch('');
+                                                setIsCandidateDropdownOpen(true);
+                                            }}
+                                            style={{
+                                                position: 'absolute',
+                                                right: 8,
+                                                background: 'none',
+                                                border: 'none',
+                                                color: 'var(--text-secondary)',
+                                                padding: 4,
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center'
+                                            }}
+                                            title="Clear selected candidate"
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="18" y1="6" x2="6" y2="18" />
+                                                <line x1="6" y1="6" x2="18" y2="18" />
+                                            </svg>
+                                        </button>
+                                    ) : (
+                                        <div 
+                                            style={{ position: 'absolute', right: 12, pointerEvents: 'none', color: 'var(--text-secondary)' }}
+                                        >
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                <polyline points="6 9 12 15 18 9" />
+                                            </svg>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {selectedStudent && !isCandidateDropdownOpen && (
+                                    <div style={{
+                                        marginTop: 6,
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: 8,
+                                        padding: '4px 10px',
+                                        borderRadius: 6,
+                                        background: 'rgba(139, 92, 246, 0.15)',
+                                        border: '1px solid rgba(139, 92, 246, 0.3)',
+                                        fontSize: '0.8rem',
+                                        color: '#c4b5fd'
+                                    }}>
+                                        <span>Candidate: <strong>{selectedStudent.first_name} {selectedStudent.last_name}</strong> (@{selectedStudent.username})</span>
+                                    </div>
+                                )}
+
+                                {isCandidateDropdownOpen && (
+                                    <>
+                                        <div 
+                                            onClick={() => setIsCandidateDropdownOpen(false)}
+                                            style={{ position: 'fixed', inset: 0, zIndex: 1100 }}
+                                        />
+                                        <div style={{
+                                            position: 'absolute',
+                                            top: 'calc(100% + 4px)',
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 1200,
+                                            maxHeight: 200,
+                                            overflowY: 'auto',
+                                            background: '#181824',
+                                            border: '1px solid rgba(139, 92, 246, 0.35)',
+                                            borderRadius: 10,
+                                            boxShadow: '0 12px 28px rgba(0, 0, 0, 0.6), 0 0 20px rgba(124, 58, 237, 0.15)',
+                                            padding: 4
+                                        }}>
+                                            {filteredStudents.length === 0 ? (
+                                                <div style={{ padding: '10px 12px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                                    No candidates matching "{candidateSearch}"
+                                                </div>
+                                            ) : (
+                                                filteredStudents.map(s => {
+                                                    const isSelected = String(scheduleForm.student) === String(s.id);
+                                                    return (
+                                                        <div 
+                                                            key={s.id}
+                                                            onClick={() => {
+                                                                setScheduleForm(f => ({ ...f, student: s.id }));
+                                                                setCandidateSearch(`${s.first_name || ''} ${s.last_name || ''}`.trim() || s.username);
+                                                                setIsCandidateDropdownOpen(false);
+                                                            }}
+                                                            style={{
+                                                                padding: '8px 12px',
+                                                                borderRadius: 6,
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'space-between',
+                                                                background: isSelected ? 'rgba(139, 92, 246, 0.2)' : 'transparent',
+                                                                border: isSelected ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid transparent',
+                                                                transition: 'all 0.15s ease',
+                                                                marginBottom: 2
+                                                            }}
+                                                            onMouseEnter={e => {
+                                                                if (!isSelected) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.06)';
+                                                            }}
+                                                            onMouseLeave={e => {
+                                                                if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                                            }}
+                                                        >
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                                                <div style={{
+                                                                    width: 28,
+                                                                    height: 28,
+                                                                    borderRadius: '50%',
+                                                                    background: 'linear-gradient(135deg, #6c63ff, #8b5cf6)',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'center',
+                                                                    fontWeight: 700,
+                                                                    fontSize: '0.8rem',
+                                                                    color: '#fff',
+                                                                    flexShrink: 0
+                                                                }}>
+                                                                    {(s.first_name || s.username || 'U').charAt(0).toUpperCase()}
+                                                                </div>
+                                                                <div style={{ textAlign: 'left' }}>
+                                                                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#fff' }}>
+                                                                        {s.first_name} {s.last_name}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                                                        @{s.username} {s.email ? `· ${s.email}` : ''}
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            {isSelected && (
+                                                                <span style={{ color: '#a78bfa', fontSize: '0.8rem', fontWeight: 700 }}>✓</span>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
 
                             <label style={{ display: 'block', marginBottom: 12 }}>
                                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Company Name</span>
