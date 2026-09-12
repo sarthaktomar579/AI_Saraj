@@ -1,5 +1,5 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { login as loginApi, register as registerApi, getProfile, googleLogin } from '../api/auth';
+import { login as loginApi, register as registerApi, getProfile, googleLogin, updateProfile } from '../api/auth';
 
 export const AuthContext = createContext(null);
 
@@ -37,7 +37,17 @@ export function AuthProvider({ children }) {
         const { data } = await googleLogin(payload);
         localStorage.setItem('access_token', data.access_token);
         localStorage.removeItem('refresh_token');
+        if (data.is_new_user) {
+            sessionStorage.setItem('prompt_role_selection', 'true');
+        }
         await fetchProfile();
+        return data;
+    };
+
+    const updateUserRole = async (newRole) => {
+        const { data } = await updateProfile({ role: newRole });
+        setUser(data);
+        return data;
     };
 
     const register = async (userData) => {
@@ -48,11 +58,12 @@ export function AuthProvider({ children }) {
     const logout = () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('prompt_role_selection');
         setUser(null);
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout, updateUserRole }}>
             {children}
         </AuthContext.Provider>
     );

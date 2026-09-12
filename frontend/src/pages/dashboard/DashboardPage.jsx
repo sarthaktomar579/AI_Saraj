@@ -13,7 +13,7 @@ const TRACKS = [
 ];
 
 export default function DashboardPage() {
-    const { user, logout } = useAuth();
+    const { user, logout, updateUserRole } = useAuth();
     const navigate = useNavigate();
     const [interviews, setInterviews] = useState([]);
     const [sessions, setSessions] = useState([]);
@@ -30,9 +30,30 @@ export default function DashboardPage() {
     const [reportData, setReportData] = useState({});
     const [expandedPracticeReport, setExpandedPracticeReport] = useState(null);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [showRoleModal, setShowRoleModal] = useState(() => {
+        return sessionStorage.getItem('prompt_role_selection') === 'true';
+    });
+    const [roleUpdating, setRoleUpdating] = useState(false);
 
     const isInterviewer = user?.role === 'interviewer' || user?.role === 'admin';
     const displayName = (user?.first_name || user?.username || '').trim().split(' ')[0];
+
+    const handleSelectRole = async (selectedRole) => {
+        setRoleUpdating(true);
+        try {
+            if (updateUserRole) {
+                await updateUserRole(selectedRole);
+            }
+            sessionStorage.removeItem('prompt_role_selection');
+            setShowRoleModal(false);
+        } catch (err) {
+            console.error('Failed to update role:', err);
+            sessionStorage.removeItem('prompt_role_selection');
+            setShowRoleModal(false);
+        } finally {
+            setRoleUpdating(false);
+        }
+    };
 
     useEffect(() => {
         listInterviews().then(r => setInterviews(r.data.results || r.data)).catch(() => {});
@@ -561,6 +582,118 @@ export default function DashboardPage() {
                                 Logout
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 1-Click Role Selection Modal for First-Time Google Users */}
+            {showRoleModal && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(5, 5, 12, 0.85)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    zIndex: 3000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 24
+                }}>
+                    <div className="card" style={{
+                        maxWidth: 560,
+                        width: '100%',
+                        padding: '36px 36px 32px',
+                        textAlign: 'center',
+                        borderRadius: 20,
+                        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6), 0 0 30px rgba(124, 58, 237, 0.25)',
+                        border: '1px solid rgba(139, 92, 246, 0.3)'
+                    }}>
+                        <div style={{ display: 'inline-flex', padding: 12, borderRadius: '50%', background: 'rgba(124, 58, 237, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)', marginBottom: 16 }}>
+                            <span style={{ fontSize: '2rem' }}>✨</span>
+                        </div>
+                        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, margin: '0 0 8px' }}>
+                            Welcome to <span className="text-gradient">AISaraj</span>!
+                        </h2>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.96rem', margin: '0 0 28px' }}>
+                            How will you be using the platform? Choose your role to personalize your workspace:
+                        </p>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16, marginBottom: 20 }}>
+                            {/* Student Option */}
+                            <div 
+                                onClick={() => !roleUpdating && handleSelectRole('student')}
+                                style={{
+                                    padding: '24px 20px',
+                                    borderRadius: 16,
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: '1px solid var(--border)',
+                                    cursor: roleUpdating ? 'wait' : 'pointer',
+                                    textAlign: 'center',
+                                    transition: 'all 0.25s ease',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 10
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.borderColor = '#8b5cf6';
+                                    e.currentTarget.style.transform = 'translateY(-3px)';
+                                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.25)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                            >
+                                <div style={{ fontSize: '2.5rem', marginBottom: 4 }}>🎓</div>
+                                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Student / Candidate</div>
+                                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    Practice AI technical mock interviews, track performance, and master coding tracks.
+                                </div>
+                            </div>
+
+                            {/* Interviewer Option */}
+                            <div 
+                                onClick={() => !roleUpdating && handleSelectRole('interviewer')}
+                                style={{
+                                    padding: '24px 20px',
+                                    borderRadius: 16,
+                                    background: 'rgba(255, 255, 255, 0.03)',
+                                    border: '1px solid var(--border)',
+                                    cursor: roleUpdating ? 'wait' : 'pointer',
+                                    textAlign: 'center',
+                                    transition: 'all 0.25s ease',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 10
+                                }}
+                                onMouseEnter={e => {
+                                    e.currentTarget.style.borderColor = '#a855f7';
+                                    e.currentTarget.style.transform = 'translateY(-3px)';
+                                    e.currentTarget.style.boxShadow = '0 8px 24px rgba(168, 85, 247, 0.25)';
+                                }}
+                                onMouseLeave={e => {
+                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = 'none';
+                                }}
+                            >
+                                <div style={{ fontSize: '2.5rem', marginBottom: 4 }}>💼</div>
+                                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Interviewer / Recruiter</div>
+                                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                                    Schedule AI interviews for candidates, evaluate reports, and assess readiness.
+                                </div>
+                            </div>
+                        </div>
+
+                        {roleUpdating && (
+                            <p style={{ color: '#a78bfa', fontSize: '0.88rem', margin: '10px 0 0' }}>
+                                Setting up your workspace...
+                            </p>
+                        )}
                     </div>
                 </div>
             )}

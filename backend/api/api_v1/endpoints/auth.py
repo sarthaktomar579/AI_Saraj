@@ -99,7 +99,9 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
         result = await db.execute(select(User).where(User.email == email))
         user = result.scalars().first()
 
+        is_new_user = False
         if not user:
+            is_new_user = True
             # Create a unique username based on email
             base_username = email.split("@")[0].replace(".", "_")
             username = base_username
@@ -144,7 +146,12 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
                 await db.refresh(user)
 
         access_token = create_access_token(subject=user.id)
-        return {"access_token": access_token, "token_type": "bearer"}
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "is_new_user": is_new_user,
+            "role": user.role
+        }
     except Exception as db_err:
         await db.rollback()
         print(f"[Google Auth DB Error]: {db_err}", flush=True)
