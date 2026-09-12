@@ -165,10 +165,21 @@ export default function DashboardPage() {
                     <img src="/handshake_logo.png" alt="AISaraj Logo" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: '50%', border: '2px solid rgba(139, 92, 246, 0.35)', boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' }} />
                     <h1 style={{ margin: 0, fontSize: '1.75rem' }}><span className="text-gradient">AISaraj</span></h1>
                 </div>
-                <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-                    <span className="badge badge-success">{user?.role}</span>
+                <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                    <span className="badge badge-success" style={{ textTransform: 'capitalize', letterSpacing: '0.04em' }}>{user?.role}</span>
                     <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{displayName}</span>
-                    <button className="btn-secondary" onClick={() => setShowLogoutConfirm(true)}>Logout</button>
+                    <button 
+                        className="btn-logout" 
+                        onClick={() => setShowLogoutConfirm(true)}
+                        title="Log out of AISaraj"
+                    >
+                        <span>Logout</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.2s ease' }}>
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                            <polyline points="16 17 21 12 16 7" />
+                            <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                    </button>
                 </div>
             </header>
 
