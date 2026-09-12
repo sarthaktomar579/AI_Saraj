@@ -245,10 +245,10 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding: 24px 24px 24px 15vw; /* Shift to the left */
+  padding: 20px 24px 20px 12vw; /* Shift to the left while keeping plenty of room for right robot */
 }
 .auth-shell-inner {
-  width: min(100%, 500px);
+  width: min(100%, 540px);
 }
 
 /* Custom Scrollbar */

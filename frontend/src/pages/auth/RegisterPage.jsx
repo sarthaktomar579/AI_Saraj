@@ -49,25 +49,27 @@ export default function RegisterPage() {
     return (
         <div className="auth-shell">
             <div className="auth-shell-inner">
-                <div className="card" style={{ width: 430, maxWidth: '100%', padding: '20px 24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
+                <div className="card" style={{ width: 540, maxWidth: '100%', padding: '24px 34px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 12 }}>
                         <img 
                             src="/handshake_logo.png" 
                             alt="AISaraj Logo" 
                             style={{ 
-                                width: 38, 
-                                height: 38, 
+                                width: 52, 
+                                height: 52, 
                                 objectFit: 'cover', 
                                 borderRadius: '50%', 
                                 border: '2px solid rgba(139, 92, 246, 0.4)',
-                                boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)'
+                                boxShadow: '0 0 20px rgba(124, 58, 237, 0.5)',
+                                marginBottom: 4
                             }} 
                         />
-                        <span style={{ fontSize: '1.4rem', fontWeight: 800, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        <span style={{ fontSize: '1.65rem', fontWeight: 800, letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
                             AISaraj
                         </span>
+                        <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Create your account</p>
                     </div>
-                    <h2 style={{ textAlign: 'center', margin: '0 0 10px', fontSize: '1.15rem' }}>Create Account</h2>
+
                     {error && <p style={{ color: 'var(--danger)', marginBottom: 8, fontSize: '0.85rem' }}>{error}</p>}
                     
                     <div style={{ marginBottom: 10 }}>
@@ -78,53 +80,53 @@ export default function RegisterPage() {
                         />
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', margin: '8px 0 10px', gap: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', margin: '10px 0 12px', gap: 14 }}>
                         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>or register with email</span>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>or register with email</span>
                         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
                     </div>
 
                     <form onSubmit={handleSubmit}>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 10 }}>
                             <div>
-                                <label style={{ fontSize: '0.8rem', marginBottom: 3, display: 'block' }}>First Name</label>
-                                <input style={{ padding: '8px 12px' }} value={form.first_name} onChange={e => update('first_name', e.target.value)} />
+                                <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 5, display: 'block', color: 'var(--text-secondary)' }}>First Name</label>
+                                <input style={{ padding: '9px 14px', borderRadius: 10, fontSize: '0.92rem' }} value={form.first_name} onChange={e => update('first_name', e.target.value)} />
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.8rem', marginBottom: 3, display: 'block' }}>Last Name</label>
-                                <input style={{ padding: '8px 12px' }} value={form.last_name} onChange={e => update('last_name', e.target.value)} />
+                                <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 5, display: 'block', color: 'var(--text-secondary)' }}>Last Name</label>
+                                <input style={{ padding: '9px 14px', borderRadius: 10, fontSize: '0.92rem' }} value={form.last_name} onChange={e => update('last_name', e.target.value)} />
                             </div>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 10, marginBottom: 8 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 14, marginBottom: 10 }}>
                             <div>
-                                <label style={{ fontSize: '0.8rem', marginBottom: 3, display: 'block' }}>Username</label>
-                                <input style={{ padding: '8px 12px' }} value={form.username} onChange={e => update('username', e.target.value)} required />
+                                <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 5, display: 'block', color: 'var(--text-secondary)' }}>Username</label>
+                                <input style={{ padding: '9px 14px', borderRadius: 10, fontSize: '0.92rem' }} value={form.username} onChange={e => update('username', e.target.value)} required />
                             </div>
                             <div>
-                                <label style={{ fontSize: '0.8rem', marginBottom: 3, display: 'block' }}>Role</label>
-                                <select style={{ padding: '8px 10px' }} value={form.role} onChange={e => update('role', e.target.value)}>
+                                <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 5, display: 'block', color: 'var(--text-secondary)' }}>Role</label>
+                                <select style={{ padding: '9px 12px', borderRadius: 10, fontSize: '0.92rem' }} value={form.role} onChange={e => update('role', e.target.value)}>
                                     <option value="student">Student</option>
                                     <option value="interviewer">Interviewer</option>
                                 </select>
                             </div>
                         </div>
 
-                        <div style={{ marginBottom: 8 }}>
-                            <label style={{ fontSize: '0.8rem', marginBottom: 3, display: 'block' }}>Email</label>
-                            <input style={{ padding: '8px 12px' }} type="email" value={form.email} onChange={e => update('email', e.target.value)} required />
+                        <div style={{ marginBottom: 10 }}>
+                            <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 5, display: 'block', color: 'var(--text-secondary)' }}>Email</label>
+                            <input style={{ padding: '9px 14px', borderRadius: 10, fontSize: '0.92rem' }} type="email" value={form.email} onChange={e => update('email', e.target.value)} required />
                         </div>
 
                         <div style={{ marginBottom: 14 }}>
-                            <label style={{ fontSize: '0.8rem', marginBottom: 3, display: 'block' }}>Password</label>
-                            <input style={{ padding: '8px 12px' }} type="password" value={form.password} onChange={e => update('password', e.target.value)} required minLength={8} />
+                            <label style={{ fontSize: '0.84rem', fontWeight: 600, marginBottom: 5, display: 'block', color: 'var(--text-secondary)' }}>Password</label>
+                            <input style={{ padding: '9px 14px', borderRadius: 10, fontSize: '0.92rem' }} type="password" value={form.password} onChange={e => update('password', e.target.value)} required minLength={8} />
                         </div>
 
-                        <button type="submit" className="btn-primary" style={{ width: '100%', padding: '10px 20px' }}>Register</button>
+                        <button type="submit" className="btn-primary" style={{ width: '100%', padding: '11px 24px', fontSize: '0.98rem', fontWeight: 700, borderRadius: 12 }}>Create Account</button>
                     </form>
                     
-                    <p style={{ textAlign: 'center', marginTop: 10, marginBottom: 0, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                        Have an account? <Link to="/login">Sign In</Link>
+                    <p style={{ textAlign: 'center', marginTop: 12, marginBottom: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                        Have an account? <Link to="/login" style={{ fontWeight: 600 }}>Sign In</Link>
                     </p>
                 </div>
             </div>
