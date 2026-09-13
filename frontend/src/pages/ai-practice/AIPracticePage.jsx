@@ -565,14 +565,14 @@ export default function AIPracticePage({ scheduled = false }) {
         raw_ai_response: { note: 'Interview ended before completion' },
     });
 
-    const askQuestionWithConstraints = async (questionText) => {
+    const askQuestionWithConstraints = async (questionText, spokenIntro = null) => {
         if (disqualifiedRef.current) return;
         setCurrentPrompt(questionText);
         setAnswerTimer(VERBAL_ANSWER_SECONDS);
         setAnswerTimerActive(false);
         setIsAdvancing(false);
         isAdvancingRef.current = false;
-        await speak(questionText);
+        await speak(spokenIntro || questionText);
         if (disqualifiedRef.current) return;
         setAnswerTimerActive(true);
         speech.startListeningWithSilenceDetection((spokenText) => {
@@ -714,14 +714,15 @@ export default function AIPracticePage({ scheduled = false }) {
             verbalTimerExpiredRef.current = false;
             setPhase(PHASE.VERBAL);
             setCurrentPrompt(questions[0].question_text);
+            setLoading(false);
+
             const welcomeMsg = isFullstack
-                ? 'Welcome to your Fullstack assessment. I will ask three technical questions across Frontend, Backend, and Database. Let us begin.'
-                : 'Welcome. I will conduct an interview based on your selected topics.';
-            await speak(welcomeMsg);
-            await askQuestionWithConstraints(questions[0].question_text);
+                ? `Welcome to your Fullstack assessment. I will ask three technical questions across Frontend, Backend, and Database. First question: ${questions[0].question_text}`
+                : `Welcome to your practice interview. First question: ${questions[0].question_text}`;
+
+            await askQuestionWithConstraints(questions[0].question_text, welcomeMsg);
         } catch (err) {
             setError(err.response?.data?.detail || err.message || 'Failed to start interview.');
-        } finally {
             setLoading(false);
         }
     };
@@ -738,10 +739,10 @@ export default function AIPracticePage({ scheduled = false }) {
             setPhase(PHASE.CODING);
             setTimerActive(true);
             setCurrentPrompt(`DSA Coding Round: ${leetcode.question_text?.split('\n')[0]}`);
+            setLoading(false);
             await speak('Now your DSA coding round begins. You have fifteen minutes.');
         } catch (err) {
             setError('Failed to generate DSA coding question.');
-        } finally {
             setLoading(false);
         }
     };

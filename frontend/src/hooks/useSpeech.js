@@ -13,38 +13,92 @@ export function useSpeech() {
     const silenceCheckRef = useRef(null);
     const finalTranscriptRef = useRef('');
 
+    const activeUtteranceRef = useRef(null);
+    const speechTimeoutRef = useRef(null);
+
+    const stopSpeaking = useCallback(() => {
+        if (speechTimeoutRef.current) {
+            clearTimeout(speechTimeoutRef.current);
+            speechTimeoutRef.current = null;
+        }
+        activeUtteranceRef.current = null;
+        window.__aisarajUtterance = null;
+        if (window.speechSynthesis) {
+            try { window.speechSynthesis.cancel(); } catch (_) { }
+        }
+        setIsSpeaking(false);
+    }, []);
+
     // ── Text-to-Speech ──
     const speak = useCallback((text) => {
         return new Promise((resolve) => {
-            if (!window.speechSynthesis) { resolve(); return; }
-            window.speechSynthesis.cancel();
+            if (!text || !window.speechSynthesis) {
+                resolve();
+                return;
+            }
+
+            // Stop any ongoing speech and watchdog
+            stopSpeaking();
 
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 0.95;
-            utterance.pitch = 0.9;
-            utterance.volume = 1;
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            utterance.volume = 1.0;
 
-            const voices = window.speechSynthesis.getVoices();
+            const voices = window.speechSynthesis.getVoices() || [];
             const preferred = voices.find(v =>
-                v.lang.startsWith('en') && v.name.toLowerCase().includes('male')
+                v.lang.startsWith('en') && (
+                    v.name.includes('Google US English') ||
+                    v.name.includes('Natural') ||
+                    v.name.includes('Microsoft Mark') ||
+                    v.name.includes('Microsoft Zira')
+                )
             ) || voices.find(v =>
-                v.lang.startsWith('en') && (v.name.includes('David') || v.name.includes('Google'))
+                v.lang.startsWith('en') && v.name.toLowerCase().includes('male')
             ) || voices.find(v => v.lang.startsWith('en'));
 
             if (preferred) utterance.voice = preferred;
 
-            utterance.onstart = () => setIsSpeaking(true);
-            utterance.onend = () => { setIsSpeaking(false); resolve(); };
-            utterance.onerror = () => { setIsSpeaking(false); resolve(); };
+            // Anchor utterance to prevent Chrome V8 garbage collection mid-speech
+            activeUtteranceRef.current = utterance;
+            window.__aisarajUtterance = utterance;
 
-            window.speechSynthesis.speak(utterance);
+            let finished = false;
+            const finish = () => {
+                if (finished) return;
+                finished = true;
+                if (speechTimeoutRef.current) {
+                    clearTimeout(speechTimeoutRef.current);
+                    speechTimeoutRef.current = null;
+                }
+                activeUtteranceRef.current = null;
+                window.__aisarajUtterance = null;
+                setIsSpeaking(false);
+                resolve();
+            };
+
+            utterance.onstart = () => {
+                setIsSpeaking(true);
+            };
+
+            utterance.onend = finish;
+            utterance.onerror = (e) => {
+                finish();
+            };
+
+            // Safety timeout watchdog: if browser hangs or drops onend, guarantee promise resolves
+            const wordCount = text.trim().split(/\s+/).length;
+            const estimatedMs = Math.max(3000, Math.ceil((wordCount / 2.0) * 1000) + 3000);
+            speechTimeoutRef.current = setTimeout(finish, estimatedMs);
+
+            try {
+                window.speechSynthesis.speak(utterance);
+            } catch (err) {
+                console.warn('[useSpeech] speak failed:', err);
+                finish();
+            }
         });
-    }, []);
-
-    const stopSpeaking = useCallback(() => {
-        window.speechSynthesis.cancel();
-        setIsSpeaking(false);
-    }, []);
+    }, [stopSpeaking]);
 
     // ── Speech Recognition ──
     const startListening = useCallback(() => {
