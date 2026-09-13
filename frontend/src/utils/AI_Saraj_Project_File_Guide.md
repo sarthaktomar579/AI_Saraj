@@ -1,4 +1,4 @@
-# AI Saraj — Complete Project File Guide
+# AISaraj — Complete Project File Guide
 
 > Every file in your project explained in simple language, ready for interview prep.
 

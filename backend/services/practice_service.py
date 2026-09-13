@@ -140,7 +140,7 @@ class PracticeService:
             }
 
         prompt = (
-            f"You are AI Saraj, an interviewer. The candidate asked for clarification or repetition on:\n"
+            f"You are AISaraj, an interviewer. The candidate asked for clarification or repetition on:\n"
             f"Question: {question.question_text if question else ''}\n"
             f"Candidate Request: {cleaned}\n\n"
             f"Politely repeat the question clearly or give a brief 1-sentence clarification.\n"
@@ -309,7 +309,7 @@ class PracticeService:
             )
 
         prompt = (
-            f"You are AI Saraj, an expert, rigorous and strict technical interviewer evaluating a software engineering candidate.\n"
+            f"You are AISaraj, an expert, rigorous and strict technical interviewer evaluating a software engineering candidate.\n"
             f"Tracks: {session.selected_tracks}, Difficulty: {session.difficulty}, Warnings: {warning_count}, Disqualified: {disqualified}.\n"
             f"Code Explanation (if any): {code_explanation}\n\n"
             f"--- CANDIDATE INTERVIEW TRANSCRIPT ---\n"

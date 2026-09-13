@@ -111,7 +111,7 @@ export default function LoginPage() {
                         ✨ Autonomous Interview AI
                     </div>
                     <div className="auth-showcase-img-wrap">
-                        <img src="/ai-saraj-avatar.png" alt="AI Saraj Interviewer" className="auth-showcase-img" />
+                        <img src="/ai-saraj-avatar.png" alt="AISaraj Interviewer" className="auth-showcase-img" />
                     </div>
                     <h2 className="auth-showcase-title">Master Your Tech Interviews</h2>
                     <div className="auth-feature-pills" style={{ marginTop: 8 }}>

@@ -149,9 +149,9 @@ export default function RegisterPage() {
                         🚀 Accelerate Your Career
                     </div>
                     <div className="auth-showcase-img-wrap">
-                        <img src="/ai-saraj-avatar.png" alt="AI Saraj Interviewer" className="auth-showcase-img" />
+                        <img src="/ai-saraj-avatar.png" alt="AISaraj Interviewer" className="auth-showcase-img" />
                     </div>
-                    <h2 className="auth-showcase-title">Join AI Saraj Today</h2>
+                    <h2 className="auth-showcase-title">Join AISaraj Today</h2>
                     <div className="auth-feature-pills" style={{ marginTop: 8 }}>
                         <span className="auth-pill">🎯 Curated Tracks</span>
                         <span className="auth-pill">💻 Interactive Code</span>

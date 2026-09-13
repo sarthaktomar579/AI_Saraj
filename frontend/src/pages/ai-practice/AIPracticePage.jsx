@@ -13,9 +13,9 @@ const VERBAL_ANSWER_SECONDS = 30;
 const VERBAL_INTERVIEW_SECONDS = 10 * 60;
 const DSA_CODING_SECONDS = 15 * 60;
 const MAX_WARNINGS_BEFORE_DISQUALIFY = 3;
-const PROCTOR_INTERVAL_MS = 300;
-const PROCTOR_MISS_LIMIT = 7;
-const PROCTOR_WARNING_COOLDOWN_MS = 5000;
+const PROCTOR_INTERVAL_MS = 250;
+const PROCTOR_MISS_LIMIT = 3;
+const PROCTOR_WARNING_COOLDOWN_MS = 2500;
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
@@ -394,14 +394,14 @@ export default function AIPracticePage({ scheduled = false }) {
 
             if (faceapiLib.nets.tinyFaceDetector.isLoaded) {
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.38 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.28 });
                 console.log('[Proctor] face-api model already loaded');
                 return;
             }
             try {
                 await faceapiLib.nets.tinyFaceDetector.loadFromUri('/models');
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.38 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.28 });
                 console.log('[Proctor] face-api model loaded successfully');
             } catch (err) {
                 console.error('[Proctor] Failed to load face-api model:', err);
@@ -460,21 +460,20 @@ export default function AIPracticePage({ scheduled = false }) {
             try {
                 const detection = await faceapiLib.detectSingleFace(video, detectorOptions);
                 let isFacingScreen = false;
-                if (detection && detection.score >= 0.38) {
+                if (detection && detection.score >= 0.28) {
                     const { x, y, width, height } = detection.box;
                     const centerX = (x + width / 2) / video.videoWidth;
                     const centerY = (y + height / 2) / video.videoHeight;
                     const aspectRatio = width / height;
 
-                    // Centering check with forgiving room for natural posture & camera placement (15% to 85% horizontal, 10% to 90% vertical)
-                    const isCentered = centerX >= 0.15 && centerX <= 0.85 && centerY >= 0.10 && centerY <= 0.90;
-                    // Frontal gaze: normal frontal face bounding boxes measure between 0.48 and 1.60.
-                    // Only turning head completely to the side (profile) drops below 0.45 or causes detection to drop.
-                    const isDirectFrontal = aspectRatio >= 0.48 && aspectRatio <= 1.60;
-                    // Face must occupy a reasonable minimum portion of camera feed
-                    const isReasonableSize = (width / video.videoWidth) >= 0.06;
+                    // Present in webcam frame (within 10%-90% horizontal, 5%-95% vertical)
+                    const isInFrame = centerX >= 0.10 && centerX <= 0.90 && centerY >= 0.05 && centerY <= 0.95;
+                    // Forward-facing orientation (frontal face aspect ratio typically 0.45 to 1.75; sideways turn drops ratio or loses detection)
+                    const isFacingForward = aspectRatio >= 0.45 && aspectRatio <= 1.75;
+                    // Face must occupy a reasonable portion of camera feed
+                    const isPresent = (width / video.videoWidth) >= 0.05;
 
-                    if (isCentered && isDirectFrontal && isReasonableSize) {
+                    if (isInFrame && isFacingForward && isPresent) {
                         isFacingScreen = true;
                     }
                 }
@@ -839,7 +838,7 @@ export default function AIPracticePage({ scheduled = false }) {
         return (
             <div className="eval-page">
                 <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, cursor: 'pointer' }} onClick={() => navigate('/dashboard')} title="AISaraj Home">
-                    <img src="/handshake_logo.png" alt="AI Saraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
+                    <img src="/handshake_logo.png" alt="AISaraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
                     <div><h1>Interview Complete</h1><p className="eval-subtitle">Thank you for your time!</p></div>
                 </div>
                 <div className="card" style={{ textAlign: 'center', padding: '40px 32px', maxWidth: 520, margin: '0 auto' }}>
@@ -880,8 +879,8 @@ export default function AIPracticePage({ scheduled = false }) {
         return (
             <div className="eval-page">
                 <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, cursor: 'pointer' }} onClick={() => navigate('/dashboard')} title="AISaraj Home">
-                    <img src="/handshake_logo.png" alt="AI Saraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
-                    <div><h1>Interview Complete</h1><p className="eval-subtitle">AI Saraj's Evaluation</p></div>
+                    <img src="/handshake_logo.png" alt="AISaraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
+                    <div><h1>Interview Complete</h1><p className="eval-subtitle">AISaraj's Evaluation</p></div>
                 </div>
                 <div className="card eval-score-card">
                     <div className="eval-score-row">
@@ -919,7 +918,7 @@ export default function AIPracticePage({ scheduled = false }) {
                 <div className="start-card card">
                     <img 
                         src="/handshake_logo.png" 
-                        alt="AI Saraj" 
+                        alt="AISaraj" 
                         className="start-avatar" 
                         onClick={() => navigate('/dashboard')} 
                         style={{ cursor: 'pointer' }} 
@@ -933,7 +932,7 @@ export default function AIPracticePage({ scheduled = false }) {
                     >
                         Scheduled AI Interview
                     </h1>
-                    <p className="start-subtitle">Conducted by AI Saraj</p>
+                    <p className="start-subtitle">Conducted by AISaraj</p>
                     {si?.company_name && <p style={{ color: '#8b5cf6', fontWeight: 600, fontSize: '1.1rem', margin: '8px 0' }}>{si.company_name}</p>}
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>Topic: <strong>{si?.topic}</strong></p>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>Difficulty: <strong>{si?.difficulty}</strong></p>
@@ -983,7 +982,7 @@ export default function AIPracticePage({ scheduled = false }) {
                 <div className="start-card card">
                     <img 
                         src="/handshake_logo.png" 
-                        alt="AI Saraj" 
+                        alt="AISaraj" 
                         className="start-avatar" 
                         onClick={() => navigate('/dashboard')} 
                         style={{ cursor: 'pointer' }} 
@@ -995,7 +994,7 @@ export default function AIPracticePage({ scheduled = false }) {
                         style={{ cursor: 'pointer' }} 
                         title="AISaraj Home"
                     >
-                        Meet AI Saraj
+                        Meet AISaraj
                     </h1>
                     <p className="start-subtitle">Your AI Technical Interviewer</p>
                     <p className="start-desc">
@@ -1063,7 +1062,7 @@ export default function AIPracticePage({ scheduled = false }) {
                     <div className={`avatar-box ${aiState}`}>
                         <img 
                             src="/ai-saraj-avatar.png" 
-                            alt="AI Saraj" 
+                            alt="AISaraj" 
                             className="ai-avatar-img" 
                             onClick={async () => {
                                 if (window.confirm('Do you want to return to Dashboard? Your current session will end.')) {
@@ -1088,7 +1087,7 @@ export default function AIPracticePage({ scheduled = false }) {
                             {aiState === 'speaking' && '🔊 Speaking...'}
                             {aiState === 'listening' && '🎤 Listening...'}
                             {aiState === 'thinking' && '🧠 Thinking...'}
-                            {aiState === 'idle' && '💬 AI Saraj'}
+                            {aiState === 'idle' && '💬 AISaraj'}
                         </p>
                     </div>
                     <div className="webcam-box">
@@ -1135,7 +1134,7 @@ export default function AIPracticePage({ scheduled = false }) {
 
                 <div className="chat-log">
                     <div className="chat-msg ai" style={{ maxWidth: '100%' }}>
-                        <span className="msg-who">🤖 AI Saraj</span>
+                        <span className="msg-who">🤖 AISaraj</span>
                         <p>{currentPrompt || 'Preparing your question...'}</p>
                     </div>
                 </div>
@@ -1214,7 +1213,7 @@ export default function AIPracticePage({ scheduled = false }) {
                         {loading ? (
                             <div style={{ textAlign: 'center', padding: 20 }}>
                                 <div style={{ fontSize: 72, animation: 'pulse 1.5s infinite' }}>⚡</div>
-                                <h3 style={{ marginTop: 16, color: '#a78bfa' }}>AI Saraj Evaluation Engine</h3>
+                                <h3 style={{ marginTop: 16, color: '#a78bfa' }}>AISaraj Evaluation Engine</h3>
                                 <p style={{ maxWidth: 360, margin: '8px auto', color: 'var(--text-secondary)' }}>
                                     Synthesizing comprehensive scorecard across all technical dimensions and grading answer quality...
                                 </p>
