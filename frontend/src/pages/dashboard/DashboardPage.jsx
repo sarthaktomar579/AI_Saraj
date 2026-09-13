@@ -3,12 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { listInterviews } from '../../api/interviews';
 import { listSessions, deleteSession } from '../../api/aiPractice';
-import { listAIInterviews, scheduleAIInterview, listStudents, getReport } from '../../api/aiInterview';
+import { listAIInterviews, scheduleAIInterview, updateAIInterview, deleteAIInterview, listStudents, getReport } from '../../api/aiInterview';
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
     { key: 'backend', label: 'Backend', subs: ['Node.js', 'Django', 'Express', 'REST API'] },
-    { key: 'dsa', label: 'DSA', subs: ['Arrays', 'Strings', 'Linked List', 'Trees', 'Graphs', 'DP'] },
+    { key: 'fullstack', label: 'Fullstack', subs: ['Frontend', 'Backend', 'Database'] },
     { key: 'data_analyst', label: 'Data Analyst', subs: ['SQL', 'MongoDB'] },
 ];
 
@@ -37,8 +37,22 @@ export default function DashboardPage() {
     const [candidateSearch, setCandidateSearch] = useState('');
     const [isCandidateDropdownOpen, setIsCandidateDropdownOpen] = useState(false);
 
+    // AI Interview details and inline edit states
+    const [selectedInterviewId, setSelectedInterviewId] = useState(null);
+    const [editingInterviewId, setEditingInterviewId] = useState(null);
+    const [editForm, setEditForm] = useState({
+        student: '', difficulty: 'medium', deadline: '', company_name: '',
+        selected_tracks: [], selected_subcategories: {},
+    });
+    const [editCandidateSearch, setEditCandidateSearch] = useState('');
+    const [isEditCandidateDropdownOpen, setIsEditCandidateDropdownOpen] = useState(false);
+    const [editLoading, setEditLoading] = useState(false);
+    const [editError, setEditError] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
+
     const isInterviewer = user?.role === 'interviewer' || user?.role === 'admin';
     const displayName = (user?.first_name || user?.username || '').trim().split(' ')[0];
+    const practiceSessions = sessions.filter(s => s.session_type !== 'scheduled' && !s.scheduled_interview_id);
 
     const selectedStudent = students.find(s => String(s.id) === String(scheduleForm.student));
     const filteredStudents = students.filter(s => {
@@ -49,6 +63,46 @@ export default function DashboardPage() {
         const email = (s.email || '').toLowerCase();
         return name.includes(q) || username.includes(q) || email.includes(q);
     });
+
+    const selectedEditStudent = students.find(s => String(s.id) === String(editForm.student));
+    const filteredEditStudents = students.filter(s => {
+        const q = editCandidateSearch.toLowerCase().trim();
+        if (!q) return true;
+        const name = `${s.first_name || ''} ${s.last_name || ''}`.toLowerCase();
+        const username = (s.username || '').toLowerCase();
+        const email = (s.email || '').toLowerCase();
+        return name.includes(q) || username.includes(q) || email.includes(q);
+    });
+
+    const getCandidateDisplay = (ai) => {
+        const student = ai.student || students.find(s => s.id === ai.student_id);
+        if (!student) return `Candidate #${ai.student_id || ''}`;
+        const name = [student.first_name, student.last_name].filter(Boolean).join(' ');
+        if (name.trim()) {
+            return `${name} (${student.username || student.email})`;
+        }
+        return student.username || student.email || `Candidate #${ai.student_id}`;
+    };
+
+    const formatDeadlineDisplay = (deadline) => {
+        if (!deadline) return 'No deadline';
+        const d = new Date(deadline);
+        if (isNaN(d.getTime())) return deadline;
+        const dateStr = d.toLocaleDateString(undefined, {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric'
+        });
+        const isEndOfDay = (d.getHours() === 23 && d.getMinutes() === 59) || String(deadline).includes('23:59:59') || String(deadline).includes('23:59');
+        if (isEndOfDay) {
+            return dateStr;
+        }
+        const timeStr = d.toLocaleTimeString(undefined, {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        return `${dateStr}, ${timeStr}`;
+    };
 
     const handleSelectRole = async (selectedRole) => {
         setRoleUpdating(true);
@@ -73,6 +127,9 @@ export default function DashboardPage() {
             listSessions().then(r => setSessions(r.data.results || r.data)).catch(() => {});
         }
         listAIInterviews().then(r => setAIInterviews(r.data.results || r.data)).catch(() => {});
+        if (user?.role === 'interviewer' || user?.role === 'admin') {
+            listStudents().then(r => setStudents(r.data)).catch(() => {});
+        }
     }, [user]);
 
     const openScheduleForm = async () => {
@@ -112,12 +169,16 @@ export default function DashboardPage() {
         setScheduleLoading(true);
         try {
             const topic = scheduleForm.selected_tracks.join(', ');
+            const deadlineStr = scheduleForm.deadline.includes('T') 
+                ? scheduleForm.deadline 
+                : `${scheduleForm.deadline}T23:59:59`;
             await scheduleAIInterview({
+                student_id: parseInt(scheduleForm.student),
                 student: parseInt(scheduleForm.student),
                 topic,
                 difficulty: scheduleForm.difficulty,
                 scheduled_at: new Date().toISOString(),
-                deadline: new Date(scheduleForm.deadline).toISOString(),
+                deadline: deadlineStr,
                 company_name: scheduleForm.company_name,
                 selected_tracks: scheduleForm.selected_tracks,
                 selected_subcategories: scheduleForm.selected_subcategories,
@@ -127,9 +188,128 @@ export default function DashboardPage() {
             const { data } = await listAIInterviews();
             setAIInterviews(data.results || data);
         } catch (err) {
-            setScheduleError(err.response?.data?.detail || 'Failed to schedule');
+            const detail = err.response?.data?.detail;
+            let msg = 'Failed to schedule';
+            if (typeof detail === 'string') {
+                msg = detail;
+            } else if (Array.isArray(detail) && detail.length > 0) {
+                msg = detail.map(d => `${d.loc ? d.loc.slice(-1)[0] : 'Field'}: ${d.msg}`).join(', ');
+            } else if (err.message) {
+                msg = err.message;
+            }
+            setScheduleError(msg);
         } finally {
             setScheduleLoading(false);
+        }
+    };
+
+    const startEditing = (ai, e) => {
+        if (e) e.stopPropagation();
+        setEditingInterviewId(ai.id);
+        setSelectedInterviewId(ai.id);
+        setEditError('');
+        setEditCandidateSearch('');
+        setIsEditCandidateDropdownOpen(false);
+        let dStr = '';
+        if (ai.deadline) {
+            dStr = ai.deadline.split('T')[0];
+        }
+        setEditForm({
+            student: String(ai.student_id),
+            difficulty: ai.difficulty || 'medium',
+            deadline: dStr,
+            company_name: ai.company_name || '',
+            selected_tracks: Array.isArray(ai.selected_tracks) ? [...ai.selected_tracks] : [],
+            selected_subcategories: typeof ai.selected_subcategories === 'object' && ai.selected_subcategories !== null ? { ...ai.selected_subcategories } : {},
+        });
+    };
+
+    const cancelEditing = (e) => {
+        if (e) e.stopPropagation();
+        setEditingInterviewId(null);
+        setEditError('');
+    };
+
+    const toggleEditTrack = (key) => {
+        setEditForm(prev => {
+            const tracks = prev.selected_tracks.includes(key)
+                ? prev.selected_tracks.filter(t => t !== key)
+                : [...prev.selected_tracks, key];
+            return { ...prev, selected_tracks: tracks };
+        });
+    };
+
+    const toggleEditSub = (trackKey, sub) => {
+        const value = sub.toLowerCase();
+        setEditForm(prev => {
+            const current = prev.selected_subcategories[trackKey] || [];
+            const next = current.includes(value) ? current.filter(s => s !== value) : [...current, value];
+            return { ...prev, selected_subcategories: { ...prev.selected_subcategories, [trackKey]: next } };
+        });
+    };
+
+    const handleSaveEdit = async (id, e) => {
+        if (e) e.preventDefault();
+        setEditError('');
+        if (!editForm.student) { setEditError('Select a candidate'); return; }
+        if (editForm.selected_tracks.length === 0) { setEditError('Select at least one track'); return; }
+        if (!editForm.deadline) { setEditError('Set a deadline'); return; }
+        setEditLoading(true);
+        try {
+            const topic = editForm.selected_tracks.join(', ');
+            const deadlineStr = editForm.deadline.includes('T') 
+                ? editForm.deadline 
+                : `${editForm.deadline}T23:59:59`;
+            const { data } = await updateAIInterview(id, {
+                student_id: parseInt(editForm.student),
+                student: parseInt(editForm.student),
+                topic,
+                difficulty: editForm.difficulty,
+                deadline: deadlineStr,
+                company_name: editForm.company_name,
+                selected_tracks: editForm.selected_tracks,
+                selected_subcategories: editForm.selected_subcategories,
+            });
+            setAIInterviews(prev => prev.map(item => item.id === id ? data : item));
+            setEditingInterviewId(null);
+        } catch (err) {
+            const detail = err.response?.data?.detail;
+            let msg = 'Failed to update interview';
+            if (typeof detail === 'string') {
+                msg = detail;
+            } else if (Array.isArray(detail) && detail.length > 0) {
+                msg = detail.map(d => `${d.loc ? d.loc.slice(-1)[0] : 'Field'}: ${d.msg}`).join(', ');
+            } else if (err.message) {
+                msg = err.message;
+            }
+            setEditError(msg);
+        } finally {
+            setEditLoading(false);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteConfirm) return;
+        const { type, id } = deleteConfirm;
+        setDeleteConfirm(prev => ({ ...prev, loading: true, error: '' }));
+        try {
+            if (type === 'session') {
+                await deleteSession(id);
+                setSessions(prev => prev.filter(s => s.id !== id));
+            } else if (type === 'interview') {
+                await deleteAIInterview(id);
+                setAIInterviews(prev => prev.filter(item => item.id !== id));
+                if (selectedInterviewId === id) setSelectedInterviewId(null);
+                if (editingInterviewId === id) setEditingInterviewId(null);
+            }
+            setDeleteConfirm(null);
+        } catch (err) {
+            console.error('Failed to delete:', err);
+            setDeleteConfirm(prev => ({
+                ...prev,
+                loading: false,
+                error: err.response?.data?.detail || 'Failed to delete. Please try again.'
+            }));
         }
     };
 
@@ -142,17 +322,6 @@ export default function DashboardPage() {
             setReportData(prev => ({ ...prev, [interviewId]: data }));
         } catch {
             setReportData(prev => ({ ...prev, [interviewId]: null }));
-        }
-    };
-
-    const handleDeleteSession = async (sessionId) => {
-        if (!window.confirm('Are you sure you want to delete this session?')) return;
-        try {
-            await deleteSession(sessionId);
-            setSessions(prev => prev.filter(s => s.id !== sessionId));
-        } catch (err) {
-            console.error('Failed to delete session:', err);
-            alert('Failed to delete session');
         }
     };
 
@@ -175,12 +344,18 @@ export default function DashboardPage() {
                 alignItems: 'center',
                 boxSizing: 'border-box'
             }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div 
+                    style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}
+                    onClick={() => navigate('/dashboard')}
+                    title="AISaraj Home"
+                >
                     <img src="/handshake_logo.png" alt="AISaraj Logo" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: '50%', border: '2px solid rgba(139, 92, 246, 0.35)', boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' }} />
                     <h1 style={{ margin: 0, fontSize: '1.75rem' }}><span className="text-gradient">AISaraj</span></h1>
                 </div>
                 <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-                    <span className="badge badge-success" style={{ textTransform: 'capitalize', letterSpacing: '0.04em' }}>{user?.role}</span>
+                    <span className="badge badge-success" style={{ textTransform: 'capitalize', letterSpacing: '0.04em' }}>
+                        {user?.role === 'student' ? 'Candidate' : user?.role}
+                    </span>
                     <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{displayName}</span>
                     <button 
                         className="btn-logout" 
@@ -216,7 +391,7 @@ export default function DashboardPage() {
                 <div className="card">
                     <h3>📊 My Stats</h3>
                     <p style={{ color: 'var(--text-secondary)' }}>
-                        {interviews.length} interviews · {sessions.length} practice sessions · {aiInterviews.length} AI interviews
+                        {interviews.length} interviews · {practiceSessions.length} practice sessions · {aiInterviews.length} AI interviews
                     </p>
                 </div>
             </div>
@@ -458,12 +633,33 @@ export default function DashboardPage() {
                             </label>
 
                             <label style={{ display: 'block', marginBottom: 16 }}>
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Deadline</span>
-                                <input type="datetime-local" value={scheduleForm.deadline} onChange={e => setScheduleForm(f => ({ ...f, deadline: e.target.value }))}
-                                    style={{ width: '100%', padding: 10, borderRadius: 8, background: 'var(--bg-primary, #12121a)', color: '#fff', border: '1px solid #333', marginTop: 4 }} />
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Last Date to Complete</span>
+                                <input 
+                                    type="date" 
+                                    min={new Date().toISOString().split('T')[0]}
+                                    value={scheduleForm.deadline} 
+                                    onChange={e => setScheduleForm(f => ({ ...f, deadline: e.target.value }))}
+                                    onClick={e => e.target.showPicker && e.target.showPicker()}
+                                    style={{ 
+                                        width: '100%', 
+                                        padding: '11px 14px', 
+                                        borderRadius: 8, 
+                                        background: 'var(--bg-primary, #12121a)', 
+                                        color: '#fff', 
+                                        border: '1px solid #333', 
+                                        fontSize: '0.92rem',
+                                        cursor: 'pointer',
+                                        colorScheme: 'dark'
+                                    }} 
+                                    required
+                                />
                             </label>
 
-                            {scheduleError && <p style={{ color: '#f87171', marginBottom: 12 }}>{scheduleError}</p>}
+                            {scheduleError && (
+                                <p style={{ color: '#f87171', marginBottom: 12 }}>
+                                    {typeof scheduleError === 'string' ? scheduleError : JSON.stringify(scheduleError)}
+                                </p>
+                            )}
 
                             <div style={{ display: 'flex', gap: 12 }}>
                                 <button type="submit" disabled={scheduleLoading}
@@ -512,45 +708,416 @@ export default function DashboardPage() {
                 <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px', display: 'grid', gap: 14, marginBottom: 32 }}>
                     {aiInterviews.slice(0, 20).map(ai => (
                         <div key={ai.id}>
-                            <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, padding: 20 }}>
-                                <div style={{ flex: 1 }}>
-                                    <strong>{ai.topic}</strong>
+                            <div style={{ borderRadius: 14, overflow: 'hidden', border: selectedInterviewId === ai.id ? '1px solid #7c3aed' : '1px solid rgba(255,255,255,0.08)', background: 'var(--card-bg, #1a1a2e)', transition: 'all 0.2s ease' }}>
+                            <div 
+                                onClick={() => {
+                                    if (editingInterviewId !== ai.id) {
+                                        setSelectedInterviewId(prev => prev === ai.id ? null : ai.id);
+                                    }
+                                }}
+                                style={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between', 
+                                    alignItems: 'center', 
+                                    flexWrap: 'wrap', 
+                                    gap: 12, 
+                                    padding: '18px 22px', 
+                                    cursor: 'pointer',
+                                    background: selectedInterviewId === ai.id ? 'rgba(124, 58, 237, 0.08)' : 'transparent',
+                                    transition: 'background 0.2s'
+                                }}
+                            >
+                                <div style={{ flex: 1, minWidth: 240 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                        <strong style={{ fontSize: '1.05rem', color: '#fff' }}>{ai.topic}</strong>
+                                        <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.1)', color: '#ccc', textTransform: 'capitalize' }}>
+                                            {ai.difficulty}
+                                        </span>
+                                    </div>
                                     {/* Student sees company name and interviewer */}
-                                    {!isInterviewer && ai.company_name && (
-                                        <p style={{ color: '#8b5cf6', fontSize: '0.85rem', margin: '2px 0' }}>
-                                            🏢 {ai.company_name} · Scheduled by {ai.interviewer?.first_name || ai.interviewer?.username}
+                                    {!isInterviewer && (
+                                        <p style={{ color: '#a78bfa', fontSize: '0.85rem', margin: '4px 0 2px' }}>
+                                            🏢 {ai.company_name || 'AISaraj'} · Scheduled by {ai.interviewer?.first_name || ai.interviewer?.username || 'Interviewer'}
                                         </p>
                                     )}
                                     {/* Interviewer sees candidate name */}
                                     {isInterviewer && (
-                                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '2px 0' }}>
-                                            Candidate: {ai.student?.first_name} {ai.student?.last_name} ({ai.student?.username})
+                                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: '4px 0 2px' }}>
+                                            Candidate: <span style={{ color: '#fff', fontWeight: 500 }}>{getCandidateDisplay(ai)}</span>
                                         </p>
                                     )}
-                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                        {ai.difficulty} · {ai.deadline ? `Deadline: ${new Date(ai.deadline).toLocaleString()}` : `Scheduled: ${new Date(ai.scheduled_at).toLocaleDateString()}`}
+                                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', margin: '2px 0 0' }}>
+                                        {ai.deadline ? `Deadline: ${formatDeadlineDisplay(ai.deadline)}` : `Scheduled: ${new Date(ai.scheduled_at).toLocaleDateString()}`}
                                         {ai.deadline && deadlinePassed(ai.deadline) && ai.status !== 'completed' && (
-                                            <span style={{ color: '#f87171', marginLeft: 8 }}>⏰ Expired</span>
+                                            <span style={{ color: '#f87171', marginLeft: 8, fontWeight: 600 }}>⏰ Expired</span>
                                         )}
                                     </p>
                                 </div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <span className={`badge ${ai.status === 'completed' ? 'badge-success' : ai.status === 'in_progress' ? 'badge-warning' : 'badge-info'}`}>{ai.status}</span>
+
+                                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                                    <span className={`badge ${ai.status === 'completed' ? 'badge-success' : ai.status === 'in_progress' ? 'badge-warning' : 'badge-info'}`}>
+                                        {ai.status.toUpperCase()}
+                                    </span>
                                     {/* Student: start/resume button if not completed and not expired */}
                                     {!isInterviewer && (ai.status === 'scheduled' || ai.status === 'in_progress') && !deadlinePassed(ai.deadline) && (
-                                        <button onClick={() => navigate(`/ai-interview/${ai.id}/take`)}
-                                            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: '#6c63ff', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); navigate(`/ai-interview/${ai.id}/take`); }}
+                                            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#6c63ff', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
                                             {ai.status === 'in_progress' ? 'Resume' : 'Start'}
                                         </button>
                                     )}
                                     {/* Interviewer: view report if completed */}
                                     {isInterviewer && ai.status === 'completed' && (
-                                        <button onClick={() => viewReport(ai.id)}
-                                            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); viewReport(ai.id); }}
+                                            style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
                                             {expandedReport === ai.id ? 'Hide Report' : 'View Report'}
                                         </button>
                                     )}
+                                    <span style={{ color: '#a78bfa', fontSize: '0.82rem', padding: '4px 8px', borderRadius: 6, background: 'rgba(167, 139, 250, 0.1)', fontWeight: 600 }}>
+                                        {selectedInterviewId === ai.id ? '▲ Close' : '▼ Details'}
+                                    </span>
                                 </div>
+                            </div>
+
+                            {/* Expanded Full Information & Edit Section */}
+                            {selectedInterviewId === ai.id && (
+                                <div style={{ padding: '18px 22px 22px', borderTop: '1px solid rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.2)' }}>
+                                    {editingInterviewId === ai.id ? (
+                                        /* Inline Edit Form */
+                                        <form onSubmit={(e) => handleSaveEdit(ai.id, e)} style={{ display: 'grid', gap: 16 }}>
+                                            <div style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 10 }}>
+                                                <strong style={{ color: '#a78bfa', fontSize: '1rem' }}>✏️ Edit Interview Details</strong>
+                                            </div>
+
+                                            {/* Candidate selection with search */}
+                                            <div style={{ position: 'relative' }}>
+                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', display: 'block', marginBottom: 4 }}>Candidate</span>
+                                                <div 
+                                                    onClick={() => setIsEditCandidateDropdownOpen(prev => !prev)}
+                                                    style={{ 
+                                                        padding: '10px 12px', borderRadius: 8, 
+                                                        background: 'var(--bg-primary, #12121a)', color: '#fff', 
+                                                        border: '1px solid #444', cursor: 'pointer', 
+                                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center' 
+                                                    }}
+                                                >
+                                                    <span>
+                                                        {selectedEditStudent ? (
+                                                            <>
+                                                                <strong>{selectedEditStudent.first_name || ''} {selectedEditStudent.last_name || ''}</strong>
+                                                                <span style={{ color: 'var(--text-secondary)', marginLeft: 6, fontSize: '0.85rem' }}>
+                                                                    ({selectedEditStudent.email || selectedEditStudent.username})
+                                                                </span>
+                                                            </>
+                                                        ) : (
+                                                            <span style={{ color: '#888' }}>-- Select Candidate --</span>
+                                                        )}
+                                                    </span>
+                                                    <span style={{ fontSize: '0.75rem', color: '#a78bfa' }}>{isEditCandidateDropdownOpen ? '▲' : '▼'}</span>
+                                                </div>
+
+                                                {isEditCandidateDropdownOpen && (
+                                                    <div style={{ 
+                                                        position: 'absolute', top: '100%', left: 0, right: 0, 
+                                                        zIndex: 100, background: '#1c1c2e', border: '1px solid #444', 
+                                                        borderRadius: 8, marginTop: 4, maxHeight: 220, overflowY: 'auto', 
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.5)', padding: 6 
+                                                    }}>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="🔍 Search candidate by name, email..."
+                                                            value={editCandidateSearch}
+                                                            onChange={e => setEditCandidateSearch(e.target.value)}
+                                                            onClick={e => e.stopPropagation()}
+                                                            autoFocus
+                                                            style={{ 
+                                                                width: '100%', padding: '8px 10px', borderRadius: 6, 
+                                                                background: '#12121a', border: '1px solid #333', 
+                                                                color: '#fff', fontSize: '0.85rem', marginBottom: 6, boxSizing: 'border-box' 
+                                                            }}
+                                                        />
+                                                        {filteredEditStudents.length === 0 ? (
+                                                            <div style={{ padding: 10, textAlign: 'center', color: '#888', fontSize: '0.85rem' }}>
+                                                                No matching candidates
+                                                            </div>
+                                                        ) : (
+                                                            filteredEditStudents.map(s => {
+                                                                const isSelected = String(s.id) === String(editForm.student);
+                                                                return (
+                                                                    <div
+                                                                        key={s.id}
+                                                                        onClick={() => {
+                                                                            setEditForm(f => ({ ...f, student: String(s.id) }));
+                                                                            setIsEditCandidateDropdownOpen(false);
+                                                                        }}
+                                                                        style={{ 
+                                                                            padding: '8px 10px', borderRadius: 6, cursor: 'pointer', 
+                                                                            background: isSelected ? 'rgba(108, 99, 255, 0.25)' : 'transparent',
+                                                                            color: isSelected ? '#a78bfa' : '#eee', fontSize: '0.85rem',
+                                                                            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                                                        }}
+                                                                    >
+                                                                        <span>{s.first_name || ''} {s.last_name || ''} ({s.email || s.username})</span>
+                                                                        {isSelected && <span style={{ color: '#10b981' }}>✓</span>}
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Company Name */}
+                                            <label style={{ display: 'block' }}>
+                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Company / Organization</span>
+                                                <input 
+                                                    type="text" 
+                                                    value={editForm.company_name} 
+                                                    onChange={e => setEditForm(f => ({ ...f, company_name: e.target.value }))}
+                                                    placeholder="e.g. Google, Infosys..."
+                                                    style={{ width: '100%', padding: 9, borderRadius: 8, background: 'var(--bg-primary, #12121a)', color: '#fff', border: '1px solid #333', marginTop: 4, boxSizing: 'border-box' }} 
+                                                />
+                                            </label>
+
+                                            {/* Tracks */}
+                                            <div>
+                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Interview Tracks</span>
+                                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                                                    {TRACKS.map(t => (
+                                                        <button 
+                                                            key={t.key} 
+                                                            type="button" 
+                                                            onClick={() => toggleEditTrack(t.key)}
+                                                            style={{
+                                                                padding: '5px 12px', borderRadius: 8, border: '1px solid',
+                                                                borderColor: editForm.selected_tracks.includes(t.key) ? '#6c63ff' : '#444',
+                                                                background: editForm.selected_tracks.includes(t.key) ? 'rgba(108, 99, 255, 0.2)' : 'transparent',
+                                                                color: editForm.selected_tracks.includes(t.key) ? '#a78bfa' : 'var(--text-secondary)',
+                                                                cursor: 'pointer', fontSize: '0.82rem',
+                                                            }}>
+                                                            {editForm.selected_tracks.includes(t.key) ? '✓ ' : ''}{t.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Subcategories */}
+                                            {TRACKS.filter(t => editForm.selected_tracks.includes(t.key)).map(t => (
+                                                <div key={t.key} style={{ background: 'rgba(255,255,255,0.03)', padding: 10, borderRadius: 8 }}>
+                                                    <span style={{ color: '#a78bfa', fontSize: '0.8rem', fontWeight: 600 }}>{t.label} Topics:</span>
+                                                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+                                                        {t.subs.map(sub => {
+                                                            const val = sub.toLowerCase();
+                                                            const active = (editForm.selected_subcategories[t.key] || []).includes(val);
+                                                            return (
+                                                                <button 
+                                                                    key={sub} 
+                                                                    type="button" 
+                                                                    onClick={() => toggleEditSub(t.key, sub)}
+                                                                    style={{
+                                                                        padding: '3px 10px', borderRadius: 6, border: '1px solid',
+                                                                        borderColor: active ? '#10b981' : '#333',
+                                                                        background: active ? 'rgba(16, 185, 129, 0.2)' : 'transparent',
+                                                                        color: active ? '#10b981' : 'var(--text-secondary)',
+                                                                        cursor: 'pointer', fontSize: '0.78rem',
+                                                                    }}>
+                                                                    {active ? '✓ ' : ''}{sub}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ))}
+
+                                            {/* Difficulty & Deadline */}
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                                                <label>
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Difficulty</span>
+                                                    <select 
+                                                        value={editForm.difficulty} 
+                                                        onChange={e => setEditForm(f => ({ ...f, difficulty: e.target.value }))}
+                                                        style={{ width: '100%', padding: 9, borderRadius: 8, background: 'var(--bg-primary, #12121a)', color: '#fff', border: '1px solid #333', marginTop: 4, boxSizing: 'border-box' }}
+                                                    >
+                                                        <option value="easy">Easy</option>
+                                                        <option value="medium">Medium</option>
+                                                        <option value="hard">Hard</option>
+                                                    </select>
+                                                </label>
+
+                                                <label>
+                                                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Last Date to Complete</span>
+                                                    <input 
+                                                        type="date" 
+                                                        min={new Date().toISOString().split('T')[0]}
+                                                        value={editForm.deadline} 
+                                                        onChange={e => setEditForm(f => ({ ...f, deadline: e.target.value }))}
+                                                        onClick={e => e.target.showPicker && e.target.showPicker()}
+                                                        style={{ width: '100%', padding: 9, borderRadius: 8, background: 'var(--bg-primary, #12121a)', color: '#fff', border: '1px solid #333', marginTop: 4, boxSizing: 'border-box', colorScheme: 'dark' }} 
+                                                        required
+                                                    />
+                                                </label>
+                                            </div>
+
+                                            {editError && <p style={{ color: '#f87171', margin: '4px 0 0', fontSize: '0.85rem' }}>{editError}</p>}
+
+                                            <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                                                <button 
+                                                    type="submit" 
+                                                    disabled={editLoading}
+                                                    style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: '#6c63ff', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.85rem' }}
+                                                >
+                                                    {editLoading ? 'Saving...' : '💾 Save Changes'}
+                                                </button>
+                                                <button 
+                                                    type="button" 
+                                                    onClick={cancelEditing}
+                                                    style={{ padding: '9px 16px', borderRadius: 8, border: '1px solid #444', background: 'transparent', color: '#ccc', cursor: 'pointer', fontSize: '0.85rem' }}
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    ) : (
+                                        /* Full Information View */
+                                        <div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 16 }}>
+                                                {/* Candidate Information */}
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                    <div style={{ color: '#a78bfa', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                                                        {isInterviewer ? '👤 Candidate Information' : '💼 Interviewer / Organization'}
+                                                    </div>
+                                                    {isInterviewer ? (
+                                                        <>
+                                                            <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#fff', marginBottom: 2 }}>
+                                                                {ai.student?.first_name || ai.student?.last_name 
+                                                                    ? `${ai.student?.first_name || ''} ${ai.student?.last_name || ''}`.trim() 
+                                                                    : (ai.student?.username || `Candidate #${ai.student_id}`)}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 2 }}>
+                                                                ✉️ {ai.student?.email || 'No email registered'}
+                                                            </div>
+                                                            {ai.student?.username && (
+                                                                <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                                                    @{ai.student.username}
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#fff', marginBottom: 2 }}>
+                                                                {ai.interviewer?.first_name || ai.interviewer?.last_name 
+                                                                    ? `${ai.interviewer?.first_name || ''} ${ai.interviewer?.last_name || ''}`.trim() 
+                                                                    : (ai.interviewer?.username || 'Interviewer')}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 2 }}>
+                                                                ✉️ {ai.interviewer?.email || 'Recruiter'}
+                                                            </div>
+                                                            <div style={{ fontSize: '0.82rem', color: '#a78bfa', marginTop: 2 }}>
+                                                                🏢 {ai.company_name || 'AISaraj'}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Assessment Scope */}
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                    <div style={{ color: '#a78bfa', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                                                        🎯 Assessment Scope
+                                                    </div>
+                                                    <div style={{ fontSize: '0.85rem', color: '#eee', marginBottom: 4 }}>
+                                                        <strong>Tracks:</strong> {(ai.selected_tracks || [ai.topic]).map(t => (
+                                                            <span key={t} style={{ marginLeft: 6, padding: '2px 8px', borderRadius: 4, background: 'rgba(108, 99, 255, 0.25)', color: '#c4b5fd', fontSize: '0.78rem' }}>
+                                                                {t}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.85rem', color: '#eee', marginBottom: 4 }}>
+                                                        <strong>Difficulty:</strong> <span style={{ textTransform: 'capitalize', color: '#10b981', fontWeight: 600 }}>{ai.difficulty}</span>
+                                                    </div>
+                                                    <div style={{ fontSize: '0.85rem', color: '#eee' }}>
+                                                        <strong>Company:</strong> {ai.company_name || 'AISaraj General Assessment'}
+                                                    </div>
+                                                </div>
+
+                                                {/* Schedule & Timing */}
+                                                <div style={{ background: 'rgba(255,255,255,0.03)', padding: 14, borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                    <div style={{ color: '#a78bfa', fontSize: '0.8rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                                                        ⏱️ Schedule & Timing
+                                                    </div>
+                                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 4 }}>
+                                                        Scheduled: {new Date(ai.scheduled_at).toLocaleString()}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.82rem', color: deadlinePassed(ai.deadline) ? '#f87171' : '#10b981', fontWeight: 600, marginBottom: 4 }}>
+                                                        Last Date: {formatDeadlineDisplay(ai.deadline)}
+                                                    </div>
+                                                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                                        Status: <span style={{ textTransform: 'uppercase', color: '#fff', fontWeight: 600 }}>{ai.status}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Subcategories tags list only for Interviewer */}
+                                            {isInterviewer && ai.selected_subcategories && Object.keys(ai.selected_subcategories).length > 0 && (
+                                                <div style={{ marginBottom: 14, padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, marginRight: 8 }}>Focus Areas:</span>
+                                                    <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
+                                                        {Object.entries(ai.selected_subcategories).flatMap(([track, subs]) => (subs || []).map(s => (
+                                                            <span key={`${track}-${s}`} style={{ padding: '2px 8px', borderRadius: 4, background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', fontSize: '0.78rem' }}>
+                                                                {s}
+                                                            </span>
+                                                        )))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Action Buttons for Interviewer */}
+                                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', paddingTop: 6 }}>
+                                                {isInterviewer && ai.status !== 'completed' && (
+                                                    <>
+                                                        <button 
+                                                            onClick={(e) => startEditing(ai, e)}
+                                                            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #7c3aed', background: 'rgba(124, 58, 237, 0.2)', color: '#c4b5fd', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+                                                        >
+                                                            ✏️ Edit Interview
+                                                        </button>
+                                                        <button 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteConfirm({
+                                                                    type: 'interview',
+                                                                    id: ai.id,
+                                                                    title: `${ai.topic} Assessment`,
+                                                                    subtitle: ai.company_name ? `For ${ai.company_name}` : `Candidate: ${getCandidateDisplay(ai)}`
+                                                                });
+                                                            }}
+                                                            style={{ padding: '7px 16px', borderRadius: 8, border: '1px solid #dc2626', background: 'rgba(220, 38, 38, 0.15)', color: '#fca5a5', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+                                                        >
+                                                            🗑️ Cancel & Delete
+                                                        </button>
+                                                    </>
+                                                )}
+                                                {isInterviewer && ai.status === 'completed' && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); viewReport(ai.id); }}
+                                                        style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+                                                    >
+                                                        {expandedReport === ai.id ? 'Hide Report' : '📊 View Full Report'}
+                                                    </button>
+                                                )}
+                                                {!isInterviewer && (ai.status === 'scheduled' || ai.status === 'in_progress') && !deadlinePassed(ai.deadline) && (
+                                                    <button 
+                                                        onClick={(e) => { e.stopPropagation(); navigate(`/ai-interview/${ai.id}/take`); }}
+                                                        style={{ padding: '7px 18px', borderRadius: 8, border: 'none', background: '#6c63ff', color: '#fff', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+                                                    >
+                                                        🚀 {ai.status === 'in_progress' ? 'Resume Interview' : 'Start Interview'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             </div>
                             {/* Inline report for interviewer */}
                             {isInterviewer && expandedReport === ai.id && reportData[ai.id] && (() => {
@@ -574,9 +1141,9 @@ export default function DashboardPage() {
                                             <div><strong>Total</strong><br /><span style={{ fontSize: '1.5rem', color: r.total_score >= 50 ? '#10b981' : '#f87171' }}>{r.total_score}/100</span></div>
                                             <div><strong>Communication</strong><br />{r.communication}/20</div>
                                             <div><strong>Technical</strong><br />{r.technical_depth}/25</div>
-                                            <div><strong>Code Quality</strong><br />{r.code_quality}/20</div>
-                                            <div><strong>Problem Solving</strong><br />{r.problem_solving}/20</div>
-                                            <div><strong>Optimization</strong><br />{r.optimization}/15</div>
+                                            <div><strong>{r.selected_tracks?.includes?.('dsa') ? 'Code Quality' : 'Best Practices'}</strong><br />{r.code_quality}/20</div>
+                                            <div><strong>{r.selected_tracks?.includes?.('dsa') ? 'Problem Solving' : 'Concept Clarity'}</strong><br />{r.problem_solving}/20</div>
+                                            <div><strong>{r.selected_tracks?.includes?.('dsa') ? 'Optimization' : 'Performance'}</strong><br />{r.optimization}/15</div>
                                             <div>
                                                 <strong>Warnings</strong><br />
                                                 <span style={{ color: r.warning_count > 0 ? '#f87171' : '#10b981', fontWeight: 700 }}>
@@ -616,19 +1183,58 @@ export default function DashboardPage() {
             )}
 
             {/* Practice sessions for students */}
-            {user?.role === 'student' && sessions.length > 0 && (
+            {user?.role === 'student' && practiceSessions.length > 0 && (
                 <>
                     <h2 style={{ marginBottom: 16 }}>Practice Sessions</h2>
                     <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px', display: 'grid', gap: 12 }}>
-                        {sessions.slice(0, 20).map(s => (
+                        {practiceSessions.slice(0, 20).map(s => (
                             <div key={s.id} style={{ position: 'relative' }}>
                                 <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingRight: 40 }}>
                                     <button 
-                                        onClick={() => handleDeleteSession(s.id)}
-                                        style={{ position: 'absolute', top: 12, right: 12, background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 4, opacity: 0.8 }}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteConfirm({
+                                                type: 'session',
+                                                id: s.id,
+                                                title: `${s.topic || 'Practice'} Session`,
+                                                subtitle: `${s.difficulty || 'medium'} · ${new Date(s.started_at).toLocaleDateString()}${s.evaluation ? ` · Score: ${s.evaluation.total_score}/100` : ''}`
+                                            });
+                                        }}
+                                        style={{
+                                            position: 'absolute',
+                                            top: 12,
+                                            right: 12,
+                                            background: 'rgba(239, 68, 68, 0.08)',
+                                            border: '1px solid rgba(239, 68, 68, 0.22)',
+                                            borderRadius: 8,
+                                            color: '#f87171',
+                                            cursor: 'pointer',
+                                            padding: '6px 8px',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'all 0.2s ease',
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
+                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                                            e.currentTarget.style.transform = 'scale(1.08)';
+                                            e.currentTarget.style.boxShadow = '0 0 14px rgba(239, 68, 68, 0.35)';
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.22)';
+                                            e.currentTarget.style.transform = 'scale(1)';
+                                            e.currentTarget.style.boxShadow = 'none';
+                                        }}
                                         title="Delete Session"
                                     >
-                                        🗑️
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="3 6 5 6 21 6" />
+                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                            <line x1="10" y1="11" x2="10" y2="17" />
+                                            <line x1="14" y1="11" x2="14" y2="17" />
+                                        </svg>
                                     </button>
                                     <div>
                                         <strong>{s.topic || 'Practice'}</strong>
@@ -638,7 +1244,7 @@ export default function DashboardPage() {
                                         </p>
                                     </div>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <span className={`badge ${s.status === 'completed' ? 'badge-success' : 'badge-warning'}`}>{s.status}</span>
+                                        <span className={`badge ${s.status === 'completed' ? 'badge-success' : s.status === 'abandoned' ? 'badge-danger' : 'badge-warning'}`}>{s.status}</span>
                                         {s.status === 'completed' && s.evaluation && (
                                             <button
                                                 onClick={() => setExpandedPracticeReport(expandedPracticeReport === s.id ? null : s.id)}
@@ -673,9 +1279,9 @@ export default function DashboardPage() {
                                                 <div><strong>Total</strong><br /><span style={{ fontSize: '1.5rem', color: r.total_score >= 50 ? '#10b981' : '#f87171' }}>{r.total_score}/100</span></div>
                                                 <div><strong>Communication</strong><br />{r.communication}/20</div>
                                                 <div><strong>Technical</strong><br />{r.technical_depth}/25</div>
-                                                <div><strong>Code Quality</strong><br />{r.code_quality}/20</div>
-                                                <div><strong>Optimization</strong><br />{r.optimization}/15</div>
-                                                <div><strong>Problem Solving</strong><br />{r.problem_solving}/20</div>
+                                                <div><strong>{r.selected_tracks?.includes?.('dsa') ? 'Code Quality' : 'Best Practices'}</strong><br />{r.code_quality}/20</div>
+                                                <div><strong>{r.selected_tracks?.includes?.('dsa') ? 'Optimization' : 'Performance'}</strong><br />{r.optimization}/15</div>
+                                                <div><strong>{r.selected_tracks?.includes?.('dsa') ? 'Problem Solving' : 'Concept Clarity'}</strong><br />{r.problem_solving}/20</div>
                                             </div>
 
                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 12 }}>
@@ -781,6 +1387,127 @@ export default function DashboardPage() {
                 </div>
             )}
 
+            {/* Custom Glassmorphic Delete Confirmation Modal */}
+            {deleteConfirm && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(5, 5, 15, 0.82)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    zIndex: 3500,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 20,
+                    animation: 'fadeIn 0.2s ease-out'
+                }}>
+                    <div className="card" style={{
+                        maxWidth: 440,
+                        width: '100%',
+                        padding: '32px 28px',
+                        textAlign: 'center',
+                        borderRadius: 20,
+                        background: 'rgba(18, 14, 32, 0.96)',
+                        border: '1px solid rgba(239, 68, 68, 0.35)',
+                        boxShadow: '0 25px 60px rgba(0, 0, 0, 0.75), 0 0 40px rgba(239, 68, 68, 0.2)'
+                    }}>
+                        {/* Glowing Red Trash Icon */}
+                        <div style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 68,
+                            height: 68,
+                            borderRadius: '50%',
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            boxShadow: '0 0 25px rgba(239, 68, 68, 0.25)',
+                            marginBottom: 18
+                        }}>
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                <line x1="10" y1="11" x2="10" y2="17" />
+                                <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
+                        </div>
+
+                        <h3 style={{ margin: '0 0 8px', fontSize: '1.35rem', fontWeight: 800, color: '#fff' }}>
+                            Delete {deleteConfirm.type === 'interview' ? 'Scheduled Interview' : 'Practice Session'}?
+                        </h3>
+                        
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: '0 0 6px', lineHeight: 1.5 }}>
+                            Are you sure you want to delete <span style={{ color: '#fff', fontWeight: 600 }}>{deleteConfirm.title}</span>?
+                        </p>
+                        {deleteConfirm.subtitle && (
+                            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem', margin: '0 0 18px' }}>
+                                {deleteConfirm.subtitle}
+                            </p>
+                        )}
+
+                        <div style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.22)',
+                            borderRadius: 10,
+                            padding: '10px 14px',
+                            marginBottom: 24,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            textAlign: 'left'
+                        }}>
+                            <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                            <span style={{ fontSize: '0.82rem', color: '#fca5a5', lineHeight: 1.4 }}>
+                                This action is permanent. All associated questions, code, transcripts, and evaluation scorecards will be erased.
+                            </span>
+                        </div>
+
+                        {deleteConfirm.error && (
+                            <div style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: 16 }}>
+                                {deleteConfirm.error}
+                            </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                            <button
+                                type="button"
+                                className="btn-secondary"
+                                style={{ flex: 1, padding: '11px 18px', borderRadius: 10, cursor: deleteConfirm.loading ? 'not-allowed' : 'pointer' }}
+                                onClick={() => !deleteConfirm.loading && setDeleteConfirm(null)}
+                                disabled={deleteConfirm.loading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                style={{
+                                    flex: 1,
+                                    padding: '11px 18px',
+                                    borderRadius: 10,
+                                    border: 'none',
+                                    background: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                                    color: '#fff',
+                                    fontWeight: 700,
+                                    fontSize: '0.92rem',
+                                    cursor: deleteConfirm.loading ? 'wait' : 'pointer',
+                                    boxShadow: '0 4px 18px rgba(239, 68, 68, 0.4)',
+                                    transition: 'all 0.2s ease',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: 8
+                                }}
+                                onClick={handleConfirmDelete}
+                                disabled={deleteConfirm.loading}
+                            >
+                                {deleteConfirm.loading ? 'Deleting...' : 'Yes, Delete'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* 1-Click Role Selection Modal for First-Time Google Users */}
             {showRoleModal && (
                 <div style={{
@@ -842,8 +1569,8 @@ export default function DashboardPage() {
                                     e.currentTarget.style.boxShadow = 'none';
                                 }}
                             >
-                                <div style={{ fontSize: '2.5rem', marginBottom: 4 }}>🎓</div>
-                                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Student / Candidate</div>
+                                <div style={{ fontSize: '2.5rem', marginBottom: 4 }}>🎯</div>
+                                <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>Candidate</div>
                                 <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
                                     Practice AI technical mock interviews, track performance, and master coding tracks.
                                 </div>
