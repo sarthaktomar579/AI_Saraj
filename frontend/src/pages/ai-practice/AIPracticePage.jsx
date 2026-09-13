@@ -395,14 +395,12 @@ export default function AIPracticePage({ scheduled = false }) {
             if (faceapiLib.nets.tinyFaceDetector.isLoaded) {
                 modelReady = true;
                 detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.28 });
-                console.log('[Proctor] face-api model already loaded');
                 return;
             }
             try {
                 await faceapiLib.nets.tinyFaceDetector.loadFromUri('/models');
                 modelReady = true;
                 detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.28 });
-                console.log('[Proctor] face-api model loaded successfully');
             } catch (err) {
                 console.error('[Proctor] Failed to load face-api model:', err);
             }
@@ -880,7 +878,7 @@ export default function AIPracticePage({ scheduled = false }) {
             <div className="eval-page">
                 <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, cursor: 'pointer' }} onClick={() => navigate('/dashboard')} title="AISaraj Home">
                     <img src="/handshake_logo.png" alt="AISaraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
-                    <div><h1>Interview Complete</h1><p className="eval-subtitle">AISaraj's Evaluation</p></div>
+                    <div><h1>Interview Complete</h1><p className="eval-subtitle"><span className="text-gradient" style={{ fontWeight: 700 }}>AISaraj</span>'s Evaluation</p></div>
                 </div>
                 <div className="card eval-score-card">
                     <div className="eval-score-row">
@@ -932,7 +930,7 @@ export default function AIPracticePage({ scheduled = false }) {
                     >
                         Scheduled AI Interview
                     </h1>
-                    <p className="start-subtitle">Conducted by AISaraj</p>
+                    <p className="start-subtitle">Conducted by <span className="text-gradient" style={{ fontWeight: 700 }}>AISaraj</span></p>
                     {si?.company_name && <p style={{ color: '#8b5cf6', fontWeight: 600, fontSize: '1.1rem', margin: '8px 0' }}>{si.company_name}</p>}
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>Topic: <strong>{si?.topic}</strong></p>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>Difficulty: <strong>{si?.difficulty}</strong></p>
@@ -994,7 +992,7 @@ export default function AIPracticePage({ scheduled = false }) {
                         style={{ cursor: 'pointer' }} 
                         title="AISaraj Home"
                     >
-                        Meet AISaraj
+                        Meet <span className="text-gradient">AISaraj</span>
                     </h1>
                     <p className="start-subtitle">Your AI Technical Interviewer</p>
                     <p className="start-desc">
@@ -1213,7 +1211,7 @@ export default function AIPracticePage({ scheduled = false }) {
                         {loading ? (
                             <div style={{ textAlign: 'center', padding: 20 }}>
                                 <div style={{ fontSize: 72, animation: 'pulse 1.5s infinite' }}>⚡</div>
-                                <h3 style={{ marginTop: 16, color: '#a78bfa' }}>AISaraj Evaluation Engine</h3>
+                                <h3 style={{ marginTop: 16 }}><span className="text-gradient">AISaraj</span> Evaluation Engine</h3>
                                 <p style={{ maxWidth: 360, margin: '8px auto', color: 'var(--text-secondary)' }}>
                                     Synthesizing comprehensive scorecard across all technical dimensions and grading answer quality...
                                 </p>

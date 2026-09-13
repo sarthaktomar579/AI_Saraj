@@ -7,10 +7,10 @@ logger = logging.getLogger(__name__)
 
 MODELS_ORDER = [
     'gemini-2.5-flash',
+    'gemini-flash-latest',
+    'gemini-2.5-pro',
+    'gemini-pro-latest',
     'gemini-3.5-flash',
-    'gemini-3.1-flash-lite-preview',
-    'gemini-3-flash-preview',
-    'gemini-3.7-flash',
 ]
 
 class GeminiClient:
@@ -40,6 +40,7 @@ class GeminiClient:
 
         for model_name in models_to_try:
             try:
+                model = self.genai.GenerativeModel(model_name)
                 generation_config = {
                     "response_mime_type": "application/json",
                     "temperature": 0.2,

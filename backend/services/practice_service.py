@@ -315,17 +315,21 @@ class PracticeService:
             f"--- CANDIDATE INTERVIEW TRANSCRIPT ---\n"
             f"{transcript_str}\n"
             f"--- END TRANSCRIPT ---\n\n"
-            f"CRITICAL STRICT SCORING DIRECTIVES:\n"
-            f"- Grade strictly and realistically according to professional industry standards:\n"
-            f"- If the candidate's answers are superficial, vague, or partially relevant (e.g. mentioning generic practices like 'try and catch' for profiling, or imprecise definitions without deep technical terms), grade strictly: total score should be around 45-55/100, with dimensions around half marks.\n"
+            f"CRITICAL DYNAMIC SCORING DIRECTIVES:\n"
+            f"- Evaluate dynamically across the full 0-100 spectrum based on the candidate's actual answers:\n"
+            f"  * 85 - 100: Exceptional / Senior-level answers with deep architectural context, trade-offs, and rigorous explanations.\n"
+            f"  * 70 - 84: Solid, accurate, and structured answers covering key concepts, best practices, and edge cases.\n"
+            f"  * 50 - 69: Average / Competent understanding; covers basic concepts but lacks depth, precision, or completeness.\n"
+            f"  * 25 - 49: Weak, superficial, or incomplete answers; misses core technical terms or provides vague explanations.\n"
+            f"  * 1 - 24: Very poor or minimal attempt; largely off-topic, one-sentence guesses, or inaccurate.\n"
+            f"  * 0: Silence, empty answers, or no attempt made.\n"
             f"- If an answer is inaccurate, repeated from another question, or empty, give minimal to zero credit for that question.\n"
-            f"- Reserve 70+ scores strictly for clear, technically accurate explanations with appropriate domain terminology.\n"
             f"- Evaluate each dimension:\n"
             f"{dimension_instructions}"
-            f"- score (integer 0-100): overall score reflecting strict technical assessment.\n"
+            f"- score (integer 0-100): overall score reflecting candidate's actual answers across the full dynamic scale.\n"
             f"- topic_relevance (integer 0-10): how directly and appropriately candidate answered the questions.\n"
             f"- proctoring_score (integer 0-10): proctoring score based on warnings.\n"
-            f"- strengths: list of 2-3 specific real strengths (note 'Basic participation' if weak).\n"
+            f"- strengths: list of 2-3 specific real strengths from the candidate's answers.\n"
             f"- weaknesses: list of 2-4 specific technical weaknesses identified directly from the transcript.\n"
             f"- improvement_plan: list of 2-4 concrete technical study topics.\n"
             f"- recommended_topics: list of topics to review.\n"
@@ -419,15 +423,33 @@ class PracticeService:
             except Exception:
                 topic_relevance = 8
 
-            communication = int(raw.get('communication', 11))
-            technical_depth = int(raw.get('technical_depth', 11))
-            code_quality = int(raw.get('code_quality', 10))
-            optimization = int(raw.get('optimization', 8))
-            problem_solving = int(raw.get('problem_solving', 10))
+            # If AI returned specific score or total_score, respect it
+            ai_score = raw.get('total_score') or raw.get('score')
+            
+            # Dynamic heuristic if dimensions are missing
+            words_count = len(all_spoken_text.split()) + len(all_code.split())
+            if words_count >= 160:
+                base_est = 75
+            elif words_count >= 90:
+                base_est = 62
+            elif words_count >= 45:
+                base_est = 45
+            elif words_count >= 15:
+                base_est = 25
+            else:
+                base_est = 15
+
+            default_total = int(ai_score) if ai_score is not None else base_est
+            # Distribute proportionally across weights (comm: 20%, tech: 25%, code: 20%, opt: 15%, ps: 20%)
+            communication = int(raw.get('communication', round(default_total * 0.20)))
+            technical_depth = int(raw.get('technical_depth', round(default_total * 0.25)))
+            code_quality = int(raw.get('code_quality', round(default_total * 0.20)))
+            optimization = int(raw.get('optimization', round(default_total * 0.15)))
+            problem_solving = int(raw.get('problem_solving', round(default_total * 0.20)))
             
             computed_total = communication + technical_depth + code_quality + optimization + problem_solving
             total_score = computed_total
-            hiring_signal = raw.get('hiring_signal', 'Consider' if total_score >= 60 else 'No Hire')
+            hiring_signal = raw.get('hiring_signal', 'Strong Hire' if total_score >= 90 else ('Hire' if total_score >= 75 else ('Consider' if total_score >= 60 else 'No Hire')))
             weaknesses = raw.get('weaknesses', ['Explanations lacked technical depth and core engineering terminology'])
 
         # Explicitly enforce calculated proctoring and topic relevance scores in raw_ai_response

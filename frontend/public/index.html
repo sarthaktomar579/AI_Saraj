@@ -3,6 +3,36 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script>
+      (function() {
+        var isCOOP = function(msg) {
+          if (!msg) return false;
+          var str = typeof msg === 'string' ? msg : (msg.message || msg.stack || (typeof msg.toString === 'function' ? msg.toString() : '') || String(msg));
+          return /Cross-Origin-Opener-Policy|window\.closed/i.test(str);
+        };
+        window.addEventListener('error', function(e) {
+          if (isCOOP(e.message) || isCOOP(e.error)) {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+        var origError = console.error;
+        console.error = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            if (isCOOP(arguments[i])) return;
+          }
+          origError.apply(console, arguments);
+        };
+        var origWarn = console.warn;
+        console.warn = function() {
+          for (var i = 0; i < arguments.length; i++) {
+            if (isCOOP(arguments[i])) return;
+          }
+          origWarn.apply(console, arguments);
+        };
+      })();
+    </script>
     <meta name="description" content="AISaraj - AI-Powered Technical Interview Platform" />
     <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon.png" />
     <link rel="icon" type="image/jpeg" href="%PUBLIC_URL%/favicon.jpg" />
