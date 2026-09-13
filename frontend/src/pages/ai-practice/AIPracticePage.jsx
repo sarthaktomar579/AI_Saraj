@@ -14,13 +14,13 @@ const VERBAL_INTERVIEW_SECONDS = 10 * 60;
 const DSA_CODING_SECONDS = 15 * 60;
 const MAX_WARNINGS_BEFORE_DISQUALIFY = 3;
 const PROCTOR_INTERVAL_MS = 500;
-const PROCTOR_MISS_LIMIT = 4;
-const PROCTOR_WARNING_COOLDOWN_MS = 6000;
+const PROCTOR_MISS_LIMIT = 8;
+const PROCTOR_WARNING_COOLDOWN_MS = 10000;
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
     { key: 'backend', label: 'Backend', subs: ['Node.js', 'Django', 'Express', 'REST API'] },
-    { key: 'dsa', label: 'DSA', subs: ['Arrays', 'Strings', 'Linked List', 'Trees', 'Graphs', 'DP'] },
+    { key: 'fullstack', label: 'Fullstack', subs: ['Frontend', 'Backend', 'Database'] },
     { key: 'data_analyst', label: 'Data Analyst', subs: ['SQL', 'MongoDB'] },
 ];
 
@@ -61,6 +61,8 @@ export default function AIPracticePage({ scheduled = false }) {
     const [aiState, setAiState] = useState('idle');
     const [cameraStream, setCameraStream] = useState(null);
     const [showWarning, setShowWarning] = useState(0);
+    const [isAdvancing, setIsAdvancing] = useState(false);
+    const isAdvancingRef = useRef(false);
 
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -77,11 +79,14 @@ export default function AIPracticePage({ scheduled = false }) {
     const warningHideTimeoutRef = useRef(null);
     const isFinishingRef = useRef(false);
     const faceApiRef = useRef(null);
+    const handleVerbalSilenceRef = useRef(null);
+    const cameraStreamRef = useRef(null);
 
     const { result, running, execute } = useCodeExecution();
     const speech = useSpeech();
     const { isSpeaking, isListening, speak, stopListening, getFinalTranscript } = speech;
     const hasDSA = selectedTracks.includes('dsa');
+    const isFullstack = selectedTracks.includes('fullstack') || selectedTracks.includes('express_tech');
 
     const ensureFaceApiLoaded = useCallback(async () => {
         if (faceApiRef.current) return faceApiRef.current;
@@ -141,7 +146,10 @@ export default function AIPracticePage({ scheduled = false }) {
     }, [isSpeaking, isListening, loading]);
 
     useEffect(() => {
-        if (cameraStream && videoRef.current) videoRef.current.srcObject = cameraStream;
+        if (cameraStream && videoRef.current) {
+            videoRef.current.srcObject = cameraStream;
+            videoRef.current.play?.().catch(() => {});
+        }
     }, [cameraStream, phase]);
 
     useEffect(() => {
@@ -189,7 +197,9 @@ export default function AIPracticePage({ scheduled = false }) {
                         clearTimeout(answerTimeoutRef.current);
                         answerTimeoutRef.current = null;
                     }
-                    handleVerbalSilence(getFinalTranscript().trim());
+                    if (!isAdvancingRef.current) {
+                        handleVerbalSilenceRef.current?.(getFinalTranscript().trim());
+                    }
                     return 0;
                 }
                 return prev - 1;
@@ -214,8 +224,44 @@ export default function AIPracticePage({ scheduled = false }) {
         }, 1000);
         return () => clearInterval(interval);
     }, [phase, explanationTimer, stopListening, getFinalTranscript]);
+    const stopCamera = useCallback(() => {
+        const stream = cameraStreamRef.current;
+        if (stream) {
+            try {
+                stream.getTracks().forEach((track) => {
+                    try { track.stop(); } catch (_) {}
+                });
+            } catch (_) {}
+            cameraStreamRef.current = null;
+        }
+        setCameraStream(null);
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        if (proctorIntervalRef.current) {
+            clearInterval(proctorIntervalRef.current);
+            proctorIntervalRef.current = null;
+        }
+    }, []);
 
-    useEffect(() => () => cameraStream?.getTracks().forEach((t) => t.stop()), [cameraStream]);
+    useEffect(() => {
+        return () => {
+            if (cameraStreamRef.current) {
+                try {
+                    cameraStreamRef.current.getTracks().forEach((track) => {
+                        try { track.stop(); } catch (_) {}
+                    });
+                } catch (_) {}
+                cameraStreamRef.current = null;
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (phase === PHASE.EVAL) {
+            stopCamera();
+        }
+    }, [phase, stopCamera]);
     useEffect(() => () => {
         if (answerTimeoutRef.current) clearTimeout(answerTimeoutRef.current);
     }, []);
@@ -227,8 +273,6 @@ export default function AIPracticePage({ scheduled = false }) {
     }, []);
 
     useEffect(() => {
-        if (!isScheduled || !scheduledInterviewIdRef.current) return undefined;
-
         const flushAbandonedAttempt = () => {
             const inActivePhase = [PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase);
             if (!inActivePhase || phase === PHASE.EVAL || isFinishingRef.current) return;
@@ -237,18 +281,36 @@ export default function AIPracticePage({ scheduled = false }) {
             const baseUrl = (process.env.REACT_APP_API_URL || 'http://localhost:8000/api/v1').replace(/\/$/, '');
             if (!token) return;
 
-            const payload = abandonedScheduledReport();
-            const url = `${baseUrl}/ai-interviews/${scheduledInterviewIdRef.current}/save-report/`;
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify(payload),
-                keepalive: true,
-            }).catch(() => {});
-            localStorage.removeItem('active_scheduled_interview_id');
+            if (isScheduled && scheduledInterviewIdRef.current) {
+                const payload = abandonedScheduledReport();
+                const url = `${baseUrl}/ai-interviews/${scheduledInterviewIdRef.current}/save-report/`;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify(payload),
+                    keepalive: true,
+                }).catch(() => {});
+                localStorage.removeItem('active_scheduled_interview_id');
+            } else if (sessionRef.current?.id) {
+                const url = `${baseUrl}/practice/${sessionRef.current.id}/evaluate/`;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({
+                        code_explanation: '',
+                        warning_count: warningCountRef.current || 0,
+                        disqualified: false,
+                        disqualify_reason: 'Session ended early',
+                    }),
+                    keepalive: true,
+                }).catch(() => {});
+            }
         };
 
         const onPageHide = () => flushAbandonedAttempt();
@@ -263,22 +325,38 @@ export default function AIPracticePage({ scheduled = false }) {
         if (![PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase)) return undefined;
         const onVisibility = () => {
             if (!document.hidden || disqualifiedRef.current) return;
-            setWarningCount((prev) => prev + 1);
-            setDisqualified(true);
-            setDisqualifyReason('Tab switch detected');
-            setCurrentPrompt('You are disqualified due to tab switch.');
-            stopListening();
-            setTimerActive(false);
-            setVerbalTimerActive(false);
-            setAnswerTimerActive(false);
-            setTimeout(() => finishInterview(''), 0);
+            warningCountRef.current += 1;
+            const count = warningCountRef.current;
+            setWarningCount(count);
+            if (warningHideTimeoutRef.current) clearTimeout(warningHideTimeoutRef.current);
+            setShowWarning(Date.now());
+            warningHideTimeoutRef.current = setTimeout(() => {
+                setShowWarning(0);
+                warningHideTimeoutRef.current = null;
+            }, 3000);
+
+            if (isScheduled || count >= MAX_WARNINGS_BEFORE_DISQUALIFY) {
+                disqualifiedRef.current = true;
+                setDisqualified(true);
+                const reason = isScheduled ? 'Tab switch detected' : `3 proctoring warnings reached (tab switch)`;
+                setDisqualifyReason(reason);
+                setCurrentPrompt('You are disqualified.');
+                speak(count >= MAX_WARNINGS_BEFORE_DISQUALIFY ? 'Warning 3 of 3. You are disqualified.' : 'You are disqualified due to tab switch.');
+                stopListening();
+                setTimerActive(false);
+                setVerbalTimerActive(false);
+                setAnswerTimerActive(false);
+                setTimeout(() => finishInterview(''), 500);
+            } else {
+                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}. Please stay on the interview tab.`);
+            }
         };
         // Do not use window 'blur': OS screenshot tools and alt-tab previews fire it without leaving the tab.
         document.addEventListener('visibilitychange', onVisibility);
         return () => {
             document.removeEventListener('visibilitychange', onVisibility);
         };
-    }, [phase, stopListening, speak]);
+    }, [phase, stopListening, speak, isScheduled]);
 
     useEffect(() => {
         const active = [PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase);
@@ -335,20 +413,22 @@ export default function AIPracticePage({ scheduled = false }) {
             warningHideTimeoutRef.current = setTimeout(() => {
                 setShowWarning(0);
                 warningHideTimeoutRef.current = null;
-            }, 4000);
-            setCurrentPrompt('⚠️ Look at screen immediately.');
-            speak('Warning! Please look at your screen.');
+            }, 3000);
 
             if (count >= MAX_WARNINGS_BEFORE_DISQUALIFY) {
                 disqualifiedRef.current = true;
                 setDisqualified(true);
-                setDisqualifyReason('Not looking at screen repeatedly');
+                setDisqualifyReason('Repeatedly looking away from screen (3/3 warnings)');
                 setCurrentPrompt('You are disqualified due to repeated off-screen behavior.');
+                speak('Warning 3 of 3. You are disqualified for repeatedly looking away.');
                 stopListening();
                 setTimerActive(false);
                 setVerbalTimerActive(false);
                 setAnswerTimerActive(false);
-                setTimeout(() => finishInterview(''), 0);
+                setTimeout(() => finishInterview(''), 500);
+            } else {
+                setCurrentPrompt('⚠️ Look at screen immediately.');
+                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}! Please look at your screen.`);
             }
         };
 
@@ -387,6 +467,7 @@ export default function AIPracticePage({ scheduled = false }) {
     const requestCamera = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            cameraStreamRef.current = stream;
             setCameraStream(stream);
             return true;
         } catch (err) {
@@ -412,8 +493,12 @@ export default function AIPracticePage({ scheduled = false }) {
         setVerbalTimerActive(false);
         setAnswerTimerActive(false);
         stopListening();
-        if (hasDSA) await startCodingRound();
-        else await finishInterview('');
+        if (hasDSA) {
+            await startCodingRound();
+        } else {
+            stopCamera();
+            await finishInterview('');
+        }
     };
 
     const abandonedScheduledReport = () => ({
@@ -440,21 +525,37 @@ export default function AIPracticePage({ scheduled = false }) {
         setCurrentPrompt(questionText);
         setAnswerTimer(VERBAL_ANSWER_SECONDS);
         setAnswerTimerActive(false);
+        setIsAdvancing(false);
+        isAdvancingRef.current = false;
         await speak(questionText);
+        if (disqualifiedRef.current) return;
         setAnswerTimerActive(true);
         speech.startListeningWithSilenceDetection((spokenText) => {
-            setAnswerTimerActive(false);
-            handleVerbalSilence(spokenText);
+            if (!isAdvancingRef.current) {
+                handleVerbalSilenceRef.current?.(spokenText);
+            }
         }, SILENCE_MS);
     };
 
     const handleVerbalSilence = useCallback(async (spokenText) => {
+        if (isAdvancingRef.current) return;
+        isAdvancingRef.current = true;
+        setIsAdvancing(true);
+
         if (disqualifiedRef.current) return;
         if (verbalTimerExpiredRef.current) return;
+
+        setAnswerTimerActive(false);
+        stopListening();
+
         const questions = verbalQuestionsRef.current;
         const idx = currentVQIndexRef.current;
         const sess = sessionRef.current;
-        if (!sess || questions.length === 0 || idx >= questions.length) return;
+        if (!sess || questions.length === 0 || idx >= questions.length) {
+            isAdvancingRef.current = false;
+            setIsAdvancing(false);
+            return;
+        }
 
         const currentQ = questions[idx];
 
@@ -466,15 +567,18 @@ export default function AIPracticePage({ scheduled = false }) {
                 await speak(ackText);
                 setAnswerTimer(VERBAL_ANSWER_SECONDS);
                 setAnswerTimerActive(true);
+                isAdvancingRef.current = false;
+                setIsAdvancing(false);
                 speech.startListeningWithSilenceDetection((nextSpokenText) => {
-                    setAnswerTimerActive(false);
-                    handleVerbalSilence(nextSpokenText);
+                    if (!isAdvancingRef.current) {
+                        handleVerbalSilence(nextSpokenText);
+                    }
                 }, SILENCE_MS);
                 return;
             }
         } catch (e) { }
 
-        if (idx < questions.length - 1 && verbalTimer > 0) {
+        if (idx < questions.length - 1 && (isFullstack || verbalTimer > 0)) {
             const nextIdx = idx + 1;
             setCurrentVQIndex(nextIdx);
             currentVQIndexRef.current = nextIdx;
@@ -483,7 +587,17 @@ export default function AIPracticePage({ scheduled = false }) {
             return;
         }
         await moveAfterVerbal();
-    }, [speech, verbalTimer, askQuestionWithConstraints, moveAfterVerbal]);
+    }, [speech, verbalTimer, askQuestionWithConstraints, moveAfterVerbal, isFullstack, stopListening]);
+
+    handleVerbalSilenceRef.current = handleVerbalSilence;
+
+    const handleManualNext = async () => {
+        if (isAdvancingRef.current || isSpeaking || isFinishingRef.current) return;
+        setAnswerTimerActive(false);
+        stopListening();
+        const spoken = getFinalTranscript();
+        await handleVerbalSilence(spoken);
+    };
 
     const startInterview = async () => {
         if (selectedTracks.length === 0) {
@@ -493,8 +607,13 @@ export default function AIPracticePage({ scheduled = false }) {
         setLoading(true);
         setError('');
         setDisqualified(false);
+        disqualifiedRef.current = false;
         setDisqualifyReason('');
         setWarningCount(0);
+        warningCountRef.current = 0;
+        proctorMissCountRef.current = 0;
+        lastProctorWarningAtRef.current = 0;
+        isFinishingRef.current = false;
         try {
             if (isScheduled && scheduledInterviewIdRef.current) {
                 await startAIInterview(scheduledInterviewIdRef.current);
@@ -518,7 +637,10 @@ export default function AIPracticePage({ scheduled = false }) {
             sessionRef.current = sessionData;
 
             const { data } = await startQuestions(sessionData.id);
-            const questions = data.questions || [];
+            let questions = data.questions || [];
+            if (isFullstack && questions.length > 3) {
+                questions = questions.slice(0, 3);
+            }
             if (questions.length === 0) {
                 if (selectedTracks.length === 1 && selectedTracks.includes('dsa')) {
                     setVerbalQuestions([]);
@@ -537,12 +659,20 @@ export default function AIPracticePage({ scheduled = false }) {
             verbalQuestionsRef.current = questions;
             setCurrentVQIndex(0);
             currentVQIndexRef.current = 0;
-            setVerbalTimer(VERBAL_INTERVIEW_SECONDS);
+            if (!isFullstack) {
+                setVerbalTimer(VERBAL_INTERVIEW_SECONDS);
+                setVerbalTimerActive(true);
+            } else {
+                setVerbalTimer(99999);
+                setVerbalTimerActive(false);
+            }
             verbalTimerExpiredRef.current = false;
             setPhase(PHASE.VERBAL);
-            setVerbalTimerActive(true);
             setCurrentPrompt(questions[0].question_text);
-            await speak('Welcome. I will conduct a ten minute interview based on your selected topics.');
+            const welcomeMsg = isFullstack
+                ? 'Welcome to your Fullstack assessment. I will ask three technical questions across Frontend, Backend, and Database. Let us begin.'
+                : 'Welcome. I will conduct an interview based on your selected topics.';
+            await speak(welcomeMsg);
             await askQuestionWithConstraints(questions[0].question_text);
         } catch (err) {
             setError(err.response?.data?.detail || err.message || 'Failed to start interview.');
@@ -593,6 +723,7 @@ export default function AIPracticePage({ scheduled = false }) {
     const finishInterview = async (explanation = '') => {
         if (isFinishingRef.current) return;
         isFinishingRef.current = true;
+        stopCamera();
         setLoading(true);
         stopListening();
         try {
@@ -660,7 +791,7 @@ export default function AIPracticePage({ scheduled = false }) {
     if (phase === PHASE.EVAL && evaluation && isScheduled) {
         return (
             <div className="eval-page">
-                <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, cursor: 'pointer' }} onClick={() => navigate('/dashboard')} title="AISaraj Home">
                     <img src="/handshake_logo.png" alt="AI Saraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
                     <div><h1>Interview Complete</h1><p className="eval-subtitle">Thank you for your time!</p></div>
                 </div>
@@ -686,25 +817,28 @@ export default function AIPracticePage({ scheduled = false }) {
     }
 
     if (phase === PHASE.EVAL && evaluation) {
-        const dims = [
+        const dims = hasDSA ? [
             { key: 'communication', label: 'Communication', max: 20, icon: '🗣️' },
             { key: 'technical_depth', label: 'Technical Depth', max: 25, icon: '🧠' },
             { key: 'code_quality', label: 'Code Quality', max: 20, icon: '💻' },
             { key: 'optimization', label: 'Optimization', max: 15, icon: '⚡' },
             { key: 'problem_solving', label: 'Problem Solving', max: 20, icon: '🧩' },
+        ] : [
+            { key: 'communication', label: 'Communication', max: 20, icon: '🗣️' },
+            { key: 'technical_depth', label: 'Technical Depth', max: 25, icon: '🧠' },
+            { key: 'code_quality', label: 'Best Practices & Architecture', max: 20, icon: '🛠️' },
+            { key: 'optimization', label: 'Performance & Scaling', max: 15, icon: '⚡' },
+            { key: 'problem_solving', label: 'Conceptual Clarity', max: 20, icon: '💡' },
         ];
         return (
             <div className="eval-page">
-                <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+                <div className="eval-header" style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, cursor: 'pointer' }} onClick={() => navigate('/dashboard')} title="AISaraj Home">
                     <img src="/handshake_logo.png" alt="AI Saraj" className="eval-avatar" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--accent)', boxShadow: '0 0 20px rgba(108, 99, 255, 0.4)' }} />
                     <div><h1>Interview Complete</h1><p className="eval-subtitle">AI Saraj's Evaluation</p></div>
                 </div>
                 <div className="card eval-score-card">
                     <div className="eval-score-row">
                         <h2 className="eval-total">Score: {evaluation.total_score}/100</h2>
-                        <span className={`badge badge-lg ${evaluation.hiring_signal.includes('Hire') ? 'badge-success' : evaluation.hiring_signal === 'Consider' ? 'badge-warning' : 'badge-danger'}`}>
-                            {evaluation.hiring_signal}
-                        </span>
                     </div>
                     {dims.map(({ key, label, max, icon }) => (
                         <div key={key} className="score-dim">
@@ -716,7 +850,7 @@ export default function AIPracticePage({ scheduled = false }) {
                 <div className="eval-grid-3">
                     <div className="card metric-card"><h3>🎯 Topic Relevance</h3><p className="eval-metric">{raw.topic_relevance || 0}/10</p></div>
                     <div className="card metric-card"><h3>👁️ Proctor</h3><p className="eval-metric">{raw.proctoring_score || 0}/10</p></div>
-                    <div className="card metric-card"><h3>⚠️ Warnings</h3><p className="eval-metric warn-count">{warningCount}</p></div>
+                    <div className="card metric-card"><h3>⚠️ Warnings</h3><p className="eval-metric warn-count">{warningCount}/{MAX_WARNINGS_BEFORE_DISQUALIFY}</p></div>
                 </div>
                 {raw.detailed_feedback && <div className="card feedback-card"><h3>📝 Feedback</h3><p>{raw.detailed_feedback}</p></div>}
                 {raw.disqualified && <div className="card feedback-card"><h3>🚫 Disqualified</h3><p>{raw.disqualify_reason || 'Policy violation'}</p></div>}
@@ -736,15 +870,37 @@ export default function AIPracticePage({ scheduled = false }) {
         return (
             <div className="start-screen">
                 <div className="start-card card">
-                    <img src="/handshake_logo.png" alt="AI Saraj" className="start-avatar" />
-                    <h1 className="start-title">Scheduled AI Interview</h1>
+                    <img 
+                        src="/handshake_logo.png" 
+                        alt="AI Saraj" 
+                        className="start-avatar" 
+                        onClick={() => navigate('/dashboard')} 
+                        style={{ cursor: 'pointer' }} 
+                        title="AISaraj Home"
+                    />
+                    <h1 
+                        className="start-title" 
+                        onClick={() => navigate('/dashboard')} 
+                        style={{ cursor: 'pointer' }} 
+                        title="AISaraj Home"
+                    >
+                        Scheduled AI Interview
+                    </h1>
                     <p className="start-subtitle">Conducted by AI Saraj</p>
                     {si?.company_name && <p style={{ color: '#8b5cf6', fontWeight: 600, fontSize: '1.1rem', margin: '8px 0' }}>{si.company_name}</p>}
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>Topic: <strong>{si?.topic}</strong></p>
                     <p style={{ color: 'var(--text-secondary)', marginBottom: 4 }}>Difficulty: <strong>{si?.difficulty}</strong></p>
                     {si?.deadline && (
                         <p style={{ color: expired ? '#f87171' : 'var(--text-secondary)', marginBottom: 4 }}>
-                            Deadline: <strong>{new Date(si.deadline).toLocaleString()}</strong>
+                            Deadline: <strong>
+                                {(() => {
+                                    const d = new Date(si.deadline);
+                                    if (isNaN(d.getTime())) return si.deadline;
+                                    const dateStr = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+                                    const isEndOfDay = (d.getHours() === 23 && d.getMinutes() === 59) || String(si.deadline).includes('23:59:59');
+                                    return isEndOfDay ? dateStr : d.toLocaleString();
+                                })()}
+                            </strong>
                             {expired && ' (Expired)'}
                         </p>
                     )}
@@ -778,10 +934,28 @@ export default function AIPracticePage({ scheduled = false }) {
         return (
             <div className="start-screen">
                 <div className="start-card card">
-                    <img src="/handshake_logo.png" alt="AI Saraj" className="start-avatar" />
-                    <h1 className="start-title">Meet AI Saraj</h1>
+                    <img 
+                        src="/handshake_logo.png" 
+                        alt="AI Saraj" 
+                        className="start-avatar" 
+                        onClick={() => navigate('/dashboard')} 
+                        style={{ cursor: 'pointer' }} 
+                        title="AISaraj Home"
+                    />
+                    <h1 
+                        className="start-title" 
+                        onClick={() => navigate('/dashboard')} 
+                        style={{ cursor: 'pointer' }} 
+                        title="AISaraj Home"
+                    >
+                        Meet AI Saraj
+                    </h1>
                     <p className="start-subtitle">Your AI Technical Interviewer</p>
-                    <p className="start-desc">Select one or more interview types. AI will run a 10-minute interview. If DSA is selected, you will also get a 15-minute coding round.</p>
+                    <p className="start-desc">
+                        {selectedTracks.includes('fullstack')
+                            ? '⚡ Fullstack Mode: 3 rapid questions across Frontend, Backend & Database to test and evaluate your answers with Gemini.'
+                            : 'Select one or more interview types. AI will conduct a focused technical interview.'}
+                    </p>
                     {error && <p className="text-danger" style={{ marginBottom: 12 }}>{error}</p>}
                     <div className="start-field">
                         <label>Interview Types (select multiple)</label>
@@ -800,7 +974,7 @@ export default function AIPracticePage({ scheduled = false }) {
                     </div>
                     {TRACKS.filter((t) => selectedTracks.includes(t.key)).map((track) => (
                         <div className="start-field" key={track.key}>
-                            <label>{track.label} subcategories (multi-select)</label>
+                            <label>{track.label} subcategories</label>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                                 {track.subs.map((sub) => {
                                     const selected = (selectedSubcategories[track.key] || []).includes(sub.toLowerCase());
@@ -840,7 +1014,28 @@ export default function AIPracticePage({ scheduled = false }) {
             <div className="interview-left">
                 <div className="top-row">
                     <div className={`avatar-box ${aiState}`}>
-                        <img src="/ai-saraj-avatar.png" alt="AI Saraj" className="ai-avatar-img" />
+                        <img 
+                            src="/ai-saraj-avatar.png" 
+                            alt="AI Saraj" 
+                            className="ai-avatar-img" 
+                            onClick={async () => {
+                                if (window.confirm('Do you want to return to Dashboard? Your current session will end.')) {
+                                    if (sessionRef.current?.id && [PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase)) {
+                                        try {
+                                            await evaluate(sessionRef.current.id, {
+                                                code_explanation: '',
+                                                warning_count: warningCountRef.current || 0,
+                                                disqualified: false,
+                                                disqualify_reason: 'User returned to dashboard',
+                                            });
+                                        } catch (e) {}
+                                    }
+                                    navigate('/dashboard');
+                                }
+                            }}
+                            title="Return to Home / Dashboard"
+                            style={{ cursor: 'pointer' }}
+                        />
                         <div className="avatar-ring-glow" />
                         <p className="avatar-label">
                             {aiState === 'speaking' && '🔊 Speaking...'}
@@ -857,23 +1052,36 @@ export default function AIPracticePage({ scheduled = false }) {
                 </div>
 
                 <div className="phase-bar">
-                    <span className={phase === PHASE.VERBAL ? 'phase-active' : 'phase-done'}>1. Interview (10 min)</span>
-                    <span className="phase-sep">→</span>
-                    <span className={phase === PHASE.CODING ? 'phase-active' : (phase === PHASE.EXPLAIN || phase === PHASE.EVAL ? 'phase-done' : '')}>2. DSA Coding (15 min)</span>
-                    <span className="phase-sep">→</span>
-                    <span className={phase === PHASE.EXPLAIN ? 'phase-active' : (phase === PHASE.EVAL ? 'phase-done' : '')}>3. Explain + Score</span>
+                    <span className={phase === PHASE.VERBAL ? 'phase-active' : 'phase-done'}>
+                        {selectedTracks.includes('fullstack') ? '1. Fullstack (3 Questions)' : '1. Verbal Interview'}
+                    </span>
+                    {hasDSA ? (
+                        <>
+                            <span className="phase-sep">→</span>
+                            <span className={phase === PHASE.CODING ? 'phase-active' : (phase === PHASE.EXPLAIN || phase === PHASE.EVAL ? 'phase-done' : '')}>2. DSA Coding (15 min)</span>
+                            <span className="phase-sep">→</span>
+                            <span className={phase === PHASE.EXPLAIN ? 'phase-active' : (phase === PHASE.EVAL ? 'phase-done' : '')}>3. Explain + Score</span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="phase-sep">→</span>
+                            <span className={phase === PHASE.EVAL ? 'phase-active' : ''}>2. AI Evaluation & Score</span>
+                        </>
+                    )}
                 </div>
 
                 {(phase === PHASE.VERBAL || phase === PHASE.CODING) && (
                     <div className="timer-row" style={{ marginBottom: 8 }}>
-                        <span className={`timer-display ${interviewTimer < 60 ? 'danger' : interviewTimer < 300 ? 'warning' : ''}`}>⏱️ {formatTime(interviewTimer)}</span>
+                        {!isFullstack && (
+                            <span className={`timer-display ${interviewTimer < 60 ? 'danger' : interviewTimer < 300 ? 'warning' : ''}`}>⏱️ {formatTime(interviewTimer)}</span>
+                        )}
                         {phase === PHASE.VERBAL && (
                             <span className={`timer-display ${answerTimer < 6 ? 'danger' : 'warning'}`} style={{ fontSize: '1rem' }}>
                                 Answer: {answerTimer}s
                             </span>
                         )}
                         <span className={`timer-display ${warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY ? 'danger' : 'warning'}`} style={{ fontSize: '1rem' }}>
-                            Warnings: {warningCount}/{MAX_WARNINGS_BEFORE_DISQUALIFY}
+                            Warnings: {Math.min(warningCount, MAX_WARNINGS_BEFORE_DISQUALIFY)}/{MAX_WARNINGS_BEFORE_DISQUALIFY}
                         </span>
                     </div>
                 )}
@@ -885,13 +1093,27 @@ export default function AIPracticePage({ scheduled = false }) {
                     </div>
                 </div>
 
+                {phase === PHASE.VERBAL && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10, border: '1px solid rgba(255,255,205,0.08)' }}>
+                        <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                            📌 Question {Math.min(currentVQIndex + 1, verbalQuestions.length)} of {verbalQuestions.length}
+                        </span>
+                        <button
+                            type="button"
+                            className="btn-primary btn-sm"
+                            style={{ padding: '6px 16px', fontSize: '0.85rem', cursor: isSpeaking || loading || isAdvancing ? 'not-allowed' : 'pointer' }}
+                            onClick={handleManualNext}
+                            disabled={isSpeaking || loading || isAdvancing}
+                        >
+                            {isAdvancing ? '⏳ Next Question...' : loading ? '⏳ Evaluating...' : currentVQIndex + 1 >= verbalQuestions.length ? 'Submit Final Answer ➔' : 'Done Answering / Next ➔'}
+                        </button>
+                    </div>
+                )}
+
                 <div className="status-bar">
-                    {isListening && <div className="listening-badge"><span className="pulse-dot" /><span>Listening... next question after 5 seconds silence or 30 seconds max.</span></div>}
+                    {isListening && <div className="listening-badge"><span className="pulse-dot" /><span>Listening... auto-advances after 5 seconds silence or click Next.</span></div>}
                     {isSpeaking && <div className="listening-badge" style={{ color: '#4ade80' }}><span className="pulse-dot" style={{ background: '#4ade80' }} /><span>AI is speaking...</span></div>}
-                    <p className="status-hint">Live warnings: {warningCount} (tab switch = disqualification)</p>
-                    {phase === PHASE.VERBAL && !isListening && !isSpeaking && (
-                        <p className="status-hint">Question {Math.min(currentVQIndex + 1, verbalQuestions.length)} of {verbalQuestions.length}</p>
-                    )}
+                    <p className="status-hint">Live warnings: {Math.min(warningCount, MAX_WARNINGS_BEFORE_DISQUALIFY)}/{MAX_WARNINGS_BEFORE_DISQUALIFY} (3 warnings = disqualification)</p>
                 </div>
             </div>
 
@@ -942,9 +1164,25 @@ export default function AIPracticePage({ scheduled = false }) {
                     </div>
                 ) : (
                     <div className="right-placeholder">
-                        <div style={{ fontSize: 80 }}>🎯</div>
-                        <h3>Technical Interview Round</h3>
-                        <p>AI asks questions from selected tracks and subcategories, then evaluates you out of 100.</p>
+                        {loading ? (
+                            <div style={{ textAlign: 'center', padding: 20 }}>
+                                <div style={{ fontSize: 72, animation: 'pulse 1.5s infinite' }}>⚡</div>
+                                <h3 style={{ marginTop: 16, color: '#a78bfa' }}>AI Saraj Evaluation Engine</h3>
+                                <p style={{ maxWidth: 360, margin: '8px auto', color: 'var(--text-secondary)' }}>
+                                    Synthesizing comprehensive scorecard across all technical dimensions and grading answer quality...
+                                </p>
+                                <div style={{ marginTop: 20, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'rgba(108, 99, 255, 0.1)', borderRadius: 20, border: '1px solid rgba(108, 99, 255, 0.3)', color: '#c4b5fd', fontSize: '0.85rem' }}>
+                                    <span className="pulse-dot" style={{ background: '#a78bfa' }} />
+                                    <span>Deep Gemini reasoning in progress (~10-15s)</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <div style={{ fontSize: 80 }}>🎯</div>
+                                <h3>Technical Interview Round</h3>
+                                <p>AI asks questions from selected tracks and subcategories, then evaluates you out of 100.</p>
+                            </>
+                        )}
                     </div>
                 )}
             </div>
@@ -953,8 +1191,15 @@ export default function AIPracticePage({ scheduled = false }) {
                 <div className="warning-screen" key={showWarning}>
                     <div className="warning-box">
                         <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>⚠️</div>
-                        <div>LOOK AT YOUR SCREEN!</div>
-                        <div style={{ fontSize: '1rem', marginTop: 8 }}>Warning {warningCount} of {MAX_WARNINGS_BEFORE_DISQUALIFY}</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>LOOK AT YOUR SCREEN!</div>
+                        <div style={{ fontSize: '1.15rem', marginTop: 10, fontWeight: 600, color: warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY ? '#ef4444' : '#f59e0b' }}>
+                            Warning {Math.min(warningCount, MAX_WARNINGS_BEFORE_DISQUALIFY)} of {MAX_WARNINGS_BEFORE_DISQUALIFY}
+                        </div>
+                        {warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY && (
+                            <div style={{ fontSize: '0.9rem', color: '#ef4444', marginTop: 6, fontWeight: 500 }}>
+                                Maximum warnings reached. Interview terminated.
+                            </div>
+                        )}
                     </div>
                 </div>
             ) : null}
