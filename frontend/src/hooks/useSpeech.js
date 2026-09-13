@@ -41,20 +41,15 @@ export function useSpeech() {
             stopSpeaking();
 
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            utterance.volume = 1.0;
+            utterance.rate = 0.95;
+            utterance.pitch = 0.9;
+            utterance.volume = 1;
 
             const voices = window.speechSynthesis.getVoices() || [];
             const preferred = voices.find(v =>
-                v.lang.startsWith('en') && (
-                    v.name.includes('Google US English') ||
-                    v.name.includes('Natural') ||
-                    v.name.includes('Microsoft Mark') ||
-                    v.name.includes('Microsoft Zira')
-                )
-            ) || voices.find(v =>
                 v.lang.startsWith('en') && v.name.toLowerCase().includes('male')
+            ) || voices.find(v =>
+                v.lang.startsWith('en') && (v.name.includes('David') || v.name.includes('Google'))
             ) || voices.find(v => v.lang.startsWith('en'));
 
             if (preferred) utterance.voice = preferred;
