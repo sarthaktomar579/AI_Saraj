@@ -13,9 +13,9 @@ const VERBAL_ANSWER_SECONDS = 30;
 const VERBAL_INTERVIEW_SECONDS = 10 * 60;
 const DSA_CODING_SECONDS = 15 * 60;
 const MAX_WARNINGS_BEFORE_DISQUALIFY = 3;
-const PROCTOR_INTERVAL_MS = 500;
-const PROCTOR_MISS_LIMIT = 8;
-const PROCTOR_WARNING_COOLDOWN_MS = 10000;
+const PROCTOR_INTERVAL_MS = 300;
+const PROCTOR_MISS_LIMIT = 4;
+const PROCTOR_WARNING_COOLDOWN_MS = 4000;
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
@@ -384,14 +384,14 @@ export default function AIPracticePage({ scheduled = false }) {
 
             if (faceapiLib.nets.tinyFaceDetector.isLoaded) {
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.48 });
                 console.log('[Proctor] face-api model already loaded');
                 return;
             }
             try {
                 await faceapiLib.nets.tinyFaceDetector.loadFromUri('/models');
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.3 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.48 });
                 console.log('[Proctor] face-api model loaded successfully');
             } catch (err) {
                 console.error('[Proctor] Failed to load face-api model:', err);
@@ -427,8 +427,8 @@ export default function AIPracticePage({ scheduled = false }) {
                 setAnswerTimerActive(false);
                 setTimeout(() => finishInterview(''), 500);
             } else {
-                setCurrentPrompt('⚠️ Look at screen immediately.');
-                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}! Please look at your screen.`);
+                setCurrentPrompt('⚠️ LOOK AT SCREEN! Face and eyes must be centered towards your laptop.');
+                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}! Please center your face and look directly at your laptop.`);
             }
         };
 
@@ -439,7 +439,26 @@ export default function AIPracticePage({ scheduled = false }) {
             checking = true;
             try {
                 const detection = await faceapiLib.detectSingleFace(video, detectorOptions);
-                const offscreen = !detection;
+                let isFacingScreen = false;
+                if (detection && detection.score >= 0.48) {
+                    const { x, y, width, height } = detection.box;
+                    const centerX = (x + width / 2) / video.videoWidth;
+                    const centerY = (y + height / 2) / video.videoHeight;
+                    const aspectRatio = width / height;
+
+                    // Face must be centred horizontally (between 25% and 75% of camera frame)
+                    const isCenteredHorizontally = centerX >= 0.25 && centerX <= 0.75;
+                    // Face must be centred vertically (between 15% and 85%)
+                    const isCenteredVertically = centerY >= 0.15 && centerY <= 0.85;
+                    // When turned sideways (profile view), aspect ratio narrows significantly
+                    const isFacingForward = aspectRatio >= 0.55 && aspectRatio <= 1.45;
+
+                    if (isCenteredHorizontally && isCenteredVertically && isFacingForward) {
+                        isFacingScreen = true;
+                    }
+                }
+
+                const offscreen = !isFacingScreen;
                 proctorMissCountRef.current = offscreen ? proctorMissCountRef.current + 1 : 0;
                 if (proctorMissCountRef.current >= PROCTOR_MISS_LIMIT) {
                     fireWarning();
@@ -1192,6 +1211,9 @@ export default function AIPracticePage({ scheduled = false }) {
                     <div className="warning-box">
                         <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>⚠️</div>
                         <div style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>LOOK AT YOUR SCREEN!</div>
+                        <div style={{ fontSize: '0.95rem', color: '#fca5a5', marginTop: 4 }}>
+                            Keep your full face and eyes centered towards your laptop.
+                        </div>
                         <div style={{ fontSize: '1.15rem', marginTop: 10, fontWeight: 600, color: warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY ? '#ef4444' : '#f59e0b' }}>
                             Warning {Math.min(warningCount, MAX_WARNINGS_BEFORE_DISQUALIFY)} of {MAX_WARNINGS_BEFORE_DISQUALIFY}
                         </div>

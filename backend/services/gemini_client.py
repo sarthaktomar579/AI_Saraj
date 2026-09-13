@@ -83,18 +83,19 @@ class GeminiClient:
             candidate_answers = re.findall(r'Candidate Answer:\s*(.*?)(?=\nQuestion|\nCode Submitted|$)', transcript, re.DOTALL)
             total_words = sum(len(a.strip().split()) for a in candidate_answers if a.strip() and '(No answer provided' not in a)
 
-            if total_words < 10:
+            if total_words < 5:
                 return {
-                    'communication': 6,
-                    'technical_depth': 5,
-                    'code_quality': 5,
-                    'optimization': 4,
-                    'problem_solving': 5,
-                    'score': 25,
-                    'topic_relevance': 3,
+                    'communication': 0,
+                    'technical_depth': 0,
+                    'code_quality': 0,
+                    'optimization': 0,
+                    'problem_solving': 0,
+                    'score': 0,
+                    'total_score': 0,
+                    'topic_relevance': 0,
                     'hiring_signal': 'No Hire',
-                    'strengths': ['Attempted session connection'],
-                    'weaknesses': ['Very minimal to no spoken answers provided during the interview'],
+                    'strengths': ['None — candidate remained silent during the interview'],
+                    'weaknesses': ['No answers provided: candidate was completely silent and did not respond'],
                     'improvement_plan': ['Practice speaking answers clearly and completely for technical questions'],
                     'recommended_topics': ['Core fundamentals', 'Communication skills'],
                 }

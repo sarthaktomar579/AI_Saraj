@@ -332,13 +332,49 @@ class PracticeService:
             f"- hiring_signal: 'No Hire' (<60), 'Consider' (60-74), 'Hire' (75-89), 'Strong Hire' (90+).\n"
             f"Output strictly valid JSON with these fields."
         )
-        try:
-            raw = await gemini_client.generate_json(prompt)
-        except Exception:
-            raw = {}
-        
+
+        # Check if candidate provided ANY spoken or written answers
+        all_spoken_text = " ".join(
+            item['spoken_answer'] for item in qa_pairs 
+            if item['spoken_answer'] and item['spoken_answer'] != "(No answer provided / silence)"
+        ).strip()
+        all_code = " ".join(item['code_answer'] for item in qa_pairs if item['code_answer']).strip()
+        has_substantive_answers = bool(all_spoken_text or all_code or (code_explanation or '').strip())
+
         is_disqualified = bool(disqualified or warning_count >= 3)
-        if is_disqualified:
+
+        if not has_substantive_answers:
+            # Candidate kept quiet or provided zero answers throughout the interview
+            total_score = 0
+            communication = 0
+            technical_depth = 0
+            code_quality = 0
+            optimization = 0
+            problem_solving = 0
+            topic_relevance = 0
+            proctoring_score = 0 if is_disqualified else max(0, 10 - (warning_count * 3))
+            hiring_signal = 'No Hire'
+            weaknesses = ['No answers provided: Candidate remained silent and did not respond to technical questions']
+            raw = {
+                'score': 0,
+                'total_score': 0,
+                'communication': 0,
+                'technical_depth': 0,
+                'code_quality': 0,
+                'optimization': 0,
+                'problem_solving': 0,
+                'topic_relevance': 0,
+                'proctoring_score': proctoring_score,
+                'hiring_signal': 'No Hire',
+                'strengths': ['None — candidate remained silent throughout the interview'],
+                'weaknesses': ['Candidate did not provide any spoken or written answers to the questions asked'],
+                'improvement_plan': ['Practice speaking answers clearly and attempting every question asked'],
+                'recommended_topics': session.selected_tracks or ['Technical Interview Preparation'],
+                'disqualified': is_disqualified,
+            }
+            if is_disqualified:
+                raw['disqualify_reason'] = disqualify_reason or 'Exceeded proctoring warnings (3/3)'
+        elif is_disqualified:
             total_score = 0
             hiring_signal = 'No Hire'
             weaknesses = [f'Disqualified: {disqualify_reason or "Exceeded proctoring warnings (3/3)"}']
@@ -349,7 +385,30 @@ class PracticeService:
             problem_solving = 0
             proctoring_score = 0
             topic_relevance = 0
+            raw = {
+                'score': 0,
+                'total_score': 0,
+                'communication': 0,
+                'technical_depth': 0,
+                'code_quality': 0,
+                'optimization': 0,
+                'problem_solving': 0,
+                'topic_relevance': 0,
+                'proctoring_score': 0,
+                'hiring_signal': 'No Hire',
+                'strengths': ['Basic participation'],
+                'weaknesses': weaknesses,
+                'improvement_plan': ['Maintain focus on the screen and adhere to proctoring guidelines'],
+                'recommended_topics': session.selected_tracks or ['Technical Fundamentals'],
+                'disqualified': True,
+                'disqualify_reason': disqualify_reason or 'Exceeded proctoring warnings (3/3)',
+            }
         else:
+            try:
+                raw = await gemini_client.generate_json(prompt)
+            except Exception:
+                raw = {}
+
             # Proctor score formula: 0 warnings = 10, 1 warning = 7, 2 warnings = 4, 3+ warnings = 0
             proctoring_score = max(0, 10 - (warning_count * 3))
             
