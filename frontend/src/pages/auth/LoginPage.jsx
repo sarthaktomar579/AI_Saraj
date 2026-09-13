@@ -70,7 +70,7 @@ export default function LoginPage() {
                             }} 
                         />
                         <h1 style={{ textAlign: 'center', margin: 0, fontSize: '1.95rem' }}>
-                            <span style={{ background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>AISaraj</span>
+                            <span className="text-gradient">AISaraj</span>
                         </h1>
                     </div>
                     <p style={{ textAlign: 'center', color: 'var(--text-secondary)', marginBottom: 18, fontSize: '0.92rem' }}>Sign in to your account</p>

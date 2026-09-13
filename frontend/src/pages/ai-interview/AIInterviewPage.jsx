@@ -76,7 +76,7 @@ export default function AIInterviewPage() {
                                 marginBottom: 8
                             }} 
                         />
-                        <span style={{ fontSize: '1.25rem', fontWeight: 700, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        <span className="text-gradient" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                             AISaraj
                         </span>
                     </div>

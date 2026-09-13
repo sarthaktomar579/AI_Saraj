@@ -50,7 +50,7 @@ export default function AIReportPage() {
                         boxShadow: '0 0 16px rgba(124, 58, 237, 0.45)' 
                     }} 
                 />
-                <span style={{ fontSize: '1.25rem', fontWeight: 700, background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                <span className="text-gradient" style={{ fontSize: '1.25rem', fontWeight: 700 }}>
                     AISaraj
                 </span>
             </div>

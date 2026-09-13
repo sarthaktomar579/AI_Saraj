@@ -78,7 +78,7 @@ export default function RegisterPage() {
                                 marginBottom: 4
                             }} 
                         />
-                        <span style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', background: 'linear-gradient(135deg, #6c63ff, #8b5cf6, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        <span className="text-gradient" style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em' }}>
                             AISaraj
                         </span>
                         <p style={{ margin: '2px 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Create your account</p>
