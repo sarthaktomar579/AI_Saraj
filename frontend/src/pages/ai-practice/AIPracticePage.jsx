@@ -13,9 +13,9 @@ const VERBAL_ANSWER_SECONDS = 30;
 const VERBAL_INTERVIEW_SECONDS = 10 * 60;
 const DSA_CODING_SECONDS = 15 * 60;
 const MAX_WARNINGS_BEFORE_DISQUALIFY = 3;
-const PROCTOR_INTERVAL_MS = 200;
-const PROCTOR_MISS_LIMIT = 3;
-const PROCTOR_WARNING_COOLDOWN_MS = 3000;
+const PROCTOR_INTERVAL_MS = 300;
+const PROCTOR_MISS_LIMIT = 7;
+const PROCTOR_WARNING_COOLDOWN_MS = 5000;
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
@@ -394,14 +394,14 @@ export default function AIPracticePage({ scheduled = false }) {
 
             if (faceapiLib.nets.tinyFaceDetector.isLoaded) {
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.55 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.38 });
                 console.log('[Proctor] face-api model already loaded');
                 return;
             }
             try {
                 await faceapiLib.nets.tinyFaceDetector.loadFromUri('/models');
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.55 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.38 });
                 console.log('[Proctor] face-api model loaded successfully');
             } catch (err) {
                 console.error('[Proctor] Failed to load face-api model:', err);
@@ -460,18 +460,21 @@ export default function AIPracticePage({ scheduled = false }) {
             try {
                 const detection = await faceapiLib.detectSingleFace(video, detectorOptions);
                 let isFacingScreen = false;
-                if (detection && detection.score >= 0.55) {
+                if (detection && detection.score >= 0.38) {
                     const { x, y, width, height } = detection.box;
                     const centerX = (x + width / 2) / video.videoWidth;
                     const centerY = (y + height / 2) / video.videoHeight;
                     const aspectRatio = width / height;
 
-                    // Must be centered in front of laptop webcam (28% to 72% horizontal, 18% to 82% vertical)
-                    const isCentered = centerX >= 0.28 && centerX <= 0.72 && centerY >= 0.18 && centerY <= 0.82;
-                    // Frontal gaze: turning head to the side (left or right) narrows visible face width below 0.65
-                    const isDirectFrontal = aspectRatio >= 0.65 && aspectRatio <= 1.35;
+                    // Centering check with forgiving room for natural posture & camera placement (15% to 85% horizontal, 10% to 90% vertical)
+                    const isCentered = centerX >= 0.15 && centerX <= 0.85 && centerY >= 0.10 && centerY <= 0.90;
+                    // Frontal gaze: normal frontal face bounding boxes measure between 0.48 and 1.60.
+                    // Only turning head completely to the side (profile) drops below 0.45 or causes detection to drop.
+                    const isDirectFrontal = aspectRatio >= 0.48 && aspectRatio <= 1.60;
+                    // Face must occupy a reasonable minimum portion of camera feed
+                    const isReasonableSize = (width / video.videoWidth) >= 0.06;
 
-                    if (isCentered && isDirectFrontal) {
+                    if (isCentered && isDirectFrontal && isReasonableSize) {
                         isFacingScreen = true;
                     }
                 }
@@ -479,8 +482,8 @@ export default function AIPracticePage({ scheduled = false }) {
                 if (!isFacingScreen) {
                     proctorMissCountRef.current += 1;
                 } else {
-                    // Soft decay instead of instant reset to prevent noisy frames from delaying detection
-                    proctorMissCountRef.current = Math.max(0, proctorMissCountRef.current - 1);
+                    // Instant reset so normal on-screen looking never accumulates transient noise frames
+                    proctorMissCountRef.current = 0;
                 }
 
                 if (proctorMissCountRef.current >= PROCTOR_MISS_LIMIT) {
