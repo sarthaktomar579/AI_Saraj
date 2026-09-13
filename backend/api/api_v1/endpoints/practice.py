@@ -1,16 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy import delete, select
 from typing import List, Any
 from core.database import get_db
 from api.deps import get_current_user
 from models.user import User
-from models.practice import PracticeSession, AIQuestion, PracticeEvaluation
+from models.practice import PracticeSession, AIQuestion, AIAnswer, PracticeEvaluation
 from schemas.practice import (
     SessionCreate, SessionDetailResponse, AIQuestionResponse, 
     StartQuestionsResponse, AnswerSubmit, PracticeEvaluationResponse, EvaluateRequest
 )
 from services.practice_service import practice_service
+
+from datetime import datetime, timezone
 
 router = APIRouter()
 
@@ -41,10 +43,27 @@ async def list_sessions(
 ) -> Any:
     result = await db.execute(
         select(PracticeSession)
-        .where(PracticeSession.student_id == current_user.id)
+        .where(
+            PracticeSession.student_id == current_user.id,
+            PracticeSession.session_type == 'practice',
+            PracticeSession.scheduled_interview_id.is_(None)
+        )
         .order_by(PracticeSession.started_at.desc())
     )
-    return result.scalars().all()
+    sessions = result.scalars().all()
+    needs_commit = False
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for s in sessions:
+        if s.status == 'active':
+            if s.evaluation:
+                s.status = 'completed'
+                needs_commit = True
+            elif s.started_at and (now - s.started_at).total_seconds() > 900:
+                s.status = 'abandoned'
+                needs_commit = True
+    if needs_commit:
+        await db.commit()
+    return sessions
 
 @router.delete("/{pk}")
 @router.delete("/{pk}/")
@@ -60,6 +79,14 @@ async def delete_session_endpoint(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
+    # Explicitly clean up evaluation and question answers to satisfy all foreign key constraints
+    await db.execute(delete(PracticeEvaluation).where(PracticeEvaluation.session_id == pk))
+    q_res = await db.execute(select(AIQuestion.id).where(AIQuestion.session_id == pk))
+    q_ids = q_res.scalars().all()
+    if q_ids:
+        await db.execute(delete(AIAnswer).where(AIAnswer.question_id.in_(q_ids)))
+        await db.execute(delete(AIQuestion).where(AIQuestion.session_id == pk))
+        
     await db.delete(session)
     await db.commit()
     return {"message": "Session deleted"}
@@ -77,6 +104,8 @@ async def get_session(
     session = result.scalars().first()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
+    if session.session_type == 'scheduled' and current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Results for scheduled interviews are only visible to the interviewer.")
     return session
 
 @router.post("/{pk}/questions/start", response_model=StartQuestionsResponse)
@@ -189,8 +218,8 @@ async def evaluate_session(
         select(PracticeSession).where(PracticeSession.id == pk, PracticeSession.student_id == current_user.id)
     )
     session = result.scalars().first()
-    if not session or session.status != 'active':
-        raise HTTPException(status_code=404, detail="Active session not found")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
         
     evaluation = await practice_service.evaluate_comprehensive(
         db, session, 

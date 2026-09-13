@@ -19,7 +19,7 @@ class PracticeSession(Base):
     completed_at = Column(DateTime, nullable=True)
 
     student = relationship("User", lazy="selectin")
-    evaluation = relationship("PracticeEvaluation", back_populates="session", uselist=False, lazy="selectin")
+    evaluation = relationship("PracticeEvaluation", back_populates="session", uselist=False, cascade="all, delete-orphan", lazy="selectin")
     questions = relationship("AIQuestion", back_populates="session", cascade="all, delete-orphan", lazy="selectin")
 
 class AIQuestion(Base):
@@ -33,7 +33,7 @@ class AIQuestion(Base):
     order = Column(Integer, nullable=False)
 
     session = relationship("PracticeSession", back_populates="questions")
-    answer = relationship("AIAnswer", back_populates="question", uselist=False, lazy="selectin")
+    answer = relationship("AIAnswer", back_populates="question", uselist=False, cascade="all, delete-orphan", lazy="selectin")
 
 class AIAnswer(Base):
     __tablename__ = 'ai_answers'

@@ -43,9 +43,12 @@ class AIInterviewService:
                 for k, v in (interview.selected_subcategories or {}).items()
             }
             fallback_pool = get_verbal_questions_for_tracks(selected_tracks, selected_sub_map)
-            random.shuffle(fallback_pool)
+            is_express = bool({'fullstack', 'express_tech'} & set(selected_tracks))
+            if not is_express:
+                random.shuffle(fallback_pool)
             
-            questions_to_add = fallback_pool[:8] if fallback_pool else []
+            q_limit = 3 if is_express else 8
+            questions_to_add = fallback_pool[:q_limit] if fallback_pool else []
             for i, q in enumerate(questions_to_add):
                 question = AIInterviewQuestion(
                     interview_id=interview.id,

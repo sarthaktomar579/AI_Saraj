@@ -1,4 +1,5 @@
 """50 real interview questions per subcategory for verbal rounds."""
+import random
 
 VERBAL_QUESTIONS = {
     # ══════════════════════════ FRONTEND ══════════════════════════
@@ -527,14 +528,73 @@ VERBAL_QUESTIONS = {
 }
 
 
+FRONTEND_SUBS = ["html", "css", "javascript", "react"]
+BACKEND_SUBS = ["node.js", "django", "express", "rest api"]
+DATABASE_SUBS = ["sql", "mongodb"]
+
+
+def get_fullstack_questions(selected_subcategories=None, count=3):
+    """
+    Generate 3 rapid questions for Fullstack.
+    Can be:
+      - 3 all from frontend (if user selected 'frontend')
+      - 3 all from backend (if user selected 'backend')
+      - 3 all from database (if user selected 'database')
+      - OR balanced full-stack combo: 1 from frontend, 1 from backend, 1 from database (default).
+    """
+    subs = [s.lower() for s in (selected_subcategories or [])]
+
+    fe_pool = [
+        {'question_text': q, 'track': 'frontend', 'subcategory': sub}
+        for sub in FRONTEND_SUBS for q in VERBAL_QUESTIONS.get(sub, [])
+    ]
+    be_pool = [
+        {'question_text': q, 'track': 'backend', 'subcategory': sub}
+        for sub in BACKEND_SUBS for q in VERBAL_QUESTIONS.get(sub, [])
+    ]
+    db_pool = [
+        {'question_text': q, 'track': 'data_analyst', 'subcategory': sub}
+        for sub in DATABASE_SUBS for q in VERBAL_QUESTIONS.get(sub, [])
+    ]
+
+    if subs == ['frontend']:
+        return random.sample(fe_pool, min(count, len(fe_pool)))
+    elif subs == ['backend']:
+        return random.sample(be_pool, min(count, len(be_pool)))
+    elif subs == ['database']:
+        return random.sample(db_pool, min(count, len(db_pool)))
+
+    # Balanced combination across tracks: 1 frontend, 1 backend, 1 database
+    chosen = [
+        random.choice(fe_pool),
+        random.choice(be_pool),
+        random.choice(db_pool),
+    ]
+    random.shuffle(chosen)
+    return chosen[:count]
+
+
 def get_verbal_questions_for_tracks(selected_tracks, selected_subcategories):
     """Return a flat list of question dicts for the given tracks/subcategories."""
     pool = []
     for track in selected_tracks:
         track_key = track.lower()
-        requested_subs = [s.lower() for s in (selected_subcategories.get(track_key) or [])]
+        if track_key in ('fullstack', 'express_tech'):
+            subs = (selected_subcategories or {}).get(track_key, [])
+            pool.extend(get_fullstack_questions(subs, count=3))
+            continue
+
+        requested_subs = [s.lower() for s in ((selected_subcategories or {}).get(track_key) or [])]
         if not requested_subs:
-            requested_subs = list(VERBAL_QUESTIONS.keys())
+            if track_key == 'frontend':
+                requested_subs = FRONTEND_SUBS
+            elif track_key == 'backend':
+                requested_subs = BACKEND_SUBS
+            elif track_key == 'data_analyst':
+                requested_subs = DATABASE_SUBS
+            else:
+                requested_subs = list(VERBAL_QUESTIONS.keys())
+
         for sub in requested_subs:
             questions = VERBAL_QUESTIONS.get(sub, [])
             for q_text in questions:

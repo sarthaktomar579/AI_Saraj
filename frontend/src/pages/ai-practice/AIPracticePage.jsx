@@ -13,9 +13,9 @@ const VERBAL_ANSWER_SECONDS = 30;
 const VERBAL_INTERVIEW_SECONDS = 10 * 60;
 const DSA_CODING_SECONDS = 15 * 60;
 const MAX_WARNINGS_BEFORE_DISQUALIFY = 3;
-const PROCTOR_INTERVAL_MS = 300;
-const PROCTOR_MISS_LIMIT = 4;
-const PROCTOR_WARNING_COOLDOWN_MS = 4000;
+const PROCTOR_INTERVAL_MS = 200;
+const PROCTOR_MISS_LIMIT = 3;
+const PROCTOR_WARNING_COOLDOWN_MS = 3000;
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
@@ -35,7 +35,7 @@ export default function AIPracticePage({ scheduled = false }) {
     const [session, setSession] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [difficulty, setDifficulty] = useState('medium');
+    const [difficulty, setDifficulty] = useState('easy');
     const [selectedTracks, setSelectedTracks] = useState([]);
     const [selectedSubcategories, setSelectedSubcategories] = useState({});
     const [currentPrompt, setCurrentPrompt] = useState('');
@@ -57,6 +57,10 @@ export default function AIPracticePage({ scheduled = false }) {
     const [warningCount, setWarningCount] = useState(0);
     const [disqualified, setDisqualified] = useState(false);
     const [disqualifyReason, setDisqualifyReason] = useState('');
+    const [warningMessage, setWarningMessage] = useState({
+        title: 'LOOK AT YOUR SCREEN!',
+        detail: 'Keep your full face and eyes centered towards your laptop.'
+    });
     const [evaluation, setEvaluation] = useState(null);
     const [aiState, setAiState] = useState('idle');
     const [cameraStream, setCameraStream] = useState(null);
@@ -72,6 +76,7 @@ export default function AIPracticePage({ scheduled = false }) {
     const verbalTimerExpiredRef = useRef(false);
     const answerTimeoutRef = useRef(null);
     const disqualifiedRef = useRef(false);
+    const disqualifyReasonRef = useRef('');
     const proctorIntervalRef = useRef(null);
     const proctorMissCountRef = useRef(0);
     const lastProctorWarningAtRef = useRef(0);
@@ -125,7 +130,7 @@ export default function AIPracticePage({ scheduled = false }) {
             setScheduledInterview(data);
             setSelectedTracks(data.selected_tracks || []);
             setSelectedSubcategories(data.selected_subcategories || {});
-            setDifficulty(data.difficulty || 'medium');
+            setDifficulty(data.difficulty || 'easy');
             setScheduledLoading(false);
         }).catch(() => {
             setError('Failed to load scheduled interview.');
@@ -325,9 +330,20 @@ export default function AIPracticePage({ scheduled = false }) {
         if (![PHASE.VERBAL, PHASE.CODING, PHASE.EXPLAIN].includes(phase)) return undefined;
         const onVisibility = () => {
             if (!document.hidden || disqualifiedRef.current) return;
-            warningCountRef.current += 1;
-            const count = warningCountRef.current;
-            setWarningCount(count);
+            // Immediate disqualification on tab switch (1 strike policy)
+            proctorMissCountRef.current = 0;
+            warningCountRef.current = MAX_WARNINGS_BEFORE_DISQUALIFY;
+            setWarningCount(MAX_WARNINGS_BEFORE_DISQUALIFY);
+
+            const reason = 'Tab switch detected';
+            disqualifyReasonRef.current = reason;
+            setDisqualifyReason(reason);
+
+            setWarningMessage({
+                title: 'TAB SWITCH DETECTED!',
+                detail: 'Leaving or switching the interview tab is strictly prohibited. You are disqualified.'
+            });
+
             if (warningHideTimeoutRef.current) clearTimeout(warningHideTimeoutRef.current);
             setShowWarning(Date.now());
             warningHideTimeoutRef.current = setTimeout(() => {
@@ -335,21 +351,15 @@ export default function AIPracticePage({ scheduled = false }) {
                 warningHideTimeoutRef.current = null;
             }, 3000);
 
-            if (isScheduled || count >= MAX_WARNINGS_BEFORE_DISQUALIFY) {
-                disqualifiedRef.current = true;
-                setDisqualified(true);
-                const reason = isScheduled ? 'Tab switch detected' : `3 proctoring warnings reached (tab switch)`;
-                setDisqualifyReason(reason);
-                setCurrentPrompt('You are disqualified.');
-                speak(count >= MAX_WARNINGS_BEFORE_DISQUALIFY ? 'Warning 3 of 3. You are disqualified.' : 'You are disqualified due to tab switch.');
-                stopListening();
-                setTimerActive(false);
-                setVerbalTimerActive(false);
-                setAnswerTimerActive(false);
-                setTimeout(() => finishInterview(''), 500);
-            } else {
-                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}. Please stay on the interview tab.`);
-            }
+            disqualifiedRef.current = true;
+            setDisqualified(true);
+            setCurrentPrompt('You are disqualified due to tab switch.');
+            speak('Tab switch detected. You are disqualified from the interview.');
+            stopListening();
+            setTimerActive(false);
+            setVerbalTimerActive(false);
+            setAnswerTimerActive(false);
+            setTimeout(() => finishInterview('', reason), 500);
         };
         // Do not use window 'blur': OS screenshot tools and alt-tab previews fire it without leaving the tab.
         document.addEventListener('visibilitychange', onVisibility);
@@ -384,14 +394,14 @@ export default function AIPracticePage({ scheduled = false }) {
 
             if (faceapiLib.nets.tinyFaceDetector.isLoaded) {
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.48 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.55 });
                 console.log('[Proctor] face-api model already loaded');
                 return;
             }
             try {
                 await faceapiLib.nets.tinyFaceDetector.loadFromUri('/models');
                 modelReady = true;
-                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.48 });
+                detectorOptions = new faceapiLib.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.55 });
                 console.log('[Proctor] face-api model loaded successfully');
             } catch (err) {
                 console.error('[Proctor] Failed to load face-api model:', err);
@@ -399,7 +409,7 @@ export default function AIPracticePage({ scheduled = false }) {
         };
 
         const fireWarning = () => {
-            if (disqualifiedRef.current) return;
+            if (disqualifiedRef.current || document.hidden) return;
             const now = Date.now();
             if (now - lastProctorWarningAtRef.current <= PROCTOR_WARNING_COOLDOWN_MS) return;
             lastProctorWarningAtRef.current = now;
@@ -408,6 +418,16 @@ export default function AIPracticePage({ scheduled = false }) {
             warningCountRef.current += 1;
             const count = warningCountRef.current;
             setWarningCount(count);
+
+            const reason = `Repeatedly looking away from screen (${Math.min(count, MAX_WARNINGS_BEFORE_DISQUALIFY)}/${MAX_WARNINGS_BEFORE_DISQUALIFY} warnings)`;
+            disqualifyReasonRef.current = reason;
+            setDisqualifyReason(reason);
+
+            setWarningMessage({
+                title: 'LOOK AT YOUR SCREEN!',
+                detail: 'Keep your full face and eyes centered towards your laptop.'
+            });
+
             if (warningHideTimeoutRef.current) clearTimeout(warningHideTimeoutRef.current);
             setShowWarning(Date.now());
             warningHideTimeoutRef.current = setTimeout(() => {
@@ -418,48 +438,51 @@ export default function AIPracticePage({ scheduled = false }) {
             if (count >= MAX_WARNINGS_BEFORE_DISQUALIFY) {
                 disqualifiedRef.current = true;
                 setDisqualified(true);
-                setDisqualifyReason('Repeatedly looking away from screen (3/3 warnings)');
                 setCurrentPrompt('You are disqualified due to repeated off-screen behavior.');
-                speak('Warning 3 of 3. You are disqualified for repeatedly looking away.');
+                speak(`Warning ${Math.min(count, MAX_WARNINGS_BEFORE_DISQUALIFY)} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}. You are disqualified for repeatedly looking away.`);
                 stopListening();
                 setTimerActive(false);
                 setVerbalTimerActive(false);
                 setAnswerTimerActive(false);
-                setTimeout(() => finishInterview(''), 500);
+                setTimeout(() => finishInterview('', reason), 500);
             } else {
                 setCurrentPrompt('⚠️ LOOK AT SCREEN! Face and eyes must be centered towards your laptop.');
-                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}! Please center your face and look directly at your laptop.`);
+                speak(`Warning ${count} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}! Please look straight at your laptop screen.`);
             }
         };
 
         const checkFace = async () => {
-            if (checking || !modelReady || !faceapiLib || !detectorOptions || disqualifiedRef.current || !videoRef.current || cancelled) return;
+            // When document is hidden (tab switched), tab proctor handles warnings, skip face checks
+            if (checking || !modelReady || !faceapiLib || !detectorOptions || disqualifiedRef.current || !videoRef.current || cancelled || document.hidden) return;
             const video = videoRef.current;
             if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return;
             checking = true;
             try {
                 const detection = await faceapiLib.detectSingleFace(video, detectorOptions);
                 let isFacingScreen = false;
-                if (detection && detection.score >= 0.48) {
+                if (detection && detection.score >= 0.55) {
                     const { x, y, width, height } = detection.box;
                     const centerX = (x + width / 2) / video.videoWidth;
                     const centerY = (y + height / 2) / video.videoHeight;
                     const aspectRatio = width / height;
 
-                    // Face must be centred horizontally (between 25% and 75% of camera frame)
-                    const isCenteredHorizontally = centerX >= 0.25 && centerX <= 0.75;
-                    // Face must be centred vertically (between 15% and 85%)
-                    const isCenteredVertically = centerY >= 0.15 && centerY <= 0.85;
-                    // When turned sideways (profile view), aspect ratio narrows significantly
-                    const isFacingForward = aspectRatio >= 0.55 && aspectRatio <= 1.45;
+                    // Must be centered in front of laptop webcam (28% to 72% horizontal, 18% to 82% vertical)
+                    const isCentered = centerX >= 0.28 && centerX <= 0.72 && centerY >= 0.18 && centerY <= 0.82;
+                    // Frontal gaze: turning head to the side (left or right) narrows visible face width below 0.65
+                    const isDirectFrontal = aspectRatio >= 0.65 && aspectRatio <= 1.35;
 
-                    if (isCenteredHorizontally && isCenteredVertically && isFacingForward) {
+                    if (isCentered && isDirectFrontal) {
                         isFacingScreen = true;
                     }
                 }
 
-                const offscreen = !isFacingScreen;
-                proctorMissCountRef.current = offscreen ? proctorMissCountRef.current + 1 : 0;
+                if (!isFacingScreen) {
+                    proctorMissCountRef.current += 1;
+                } else {
+                    // Soft decay instead of instant reset to prevent noisy frames from delaying detection
+                    proctorMissCountRef.current = Math.max(0, proctorMissCountRef.current - 1);
+                }
+
                 if (proctorMissCountRef.current >= PROCTOR_MISS_LIMIT) {
                     fireWarning();
                 }
@@ -739,7 +762,7 @@ export default function AIPracticePage({ scheduled = false }) {
         );
     };
 
-    const finishInterview = async (explanation = '') => {
+    const finishInterview = async (explanation = '', explicitReason = '') => {
         if (isFinishingRef.current) return;
         isFinishingRef.current = true;
         stopCamera();
@@ -748,11 +771,12 @@ export default function AIPracticePage({ scheduled = false }) {
         try {
             const sess = sessionRef.current;
             setCurrentPrompt('Thank you. Evaluating your interview...');
+            const finalReason = explicitReason || disqualifyReasonRef.current || disqualifyReason;
             const { data } = await evaluate(sess.id, {
                 code_explanation: explanation || codeExplanation,
                 warning_count: warningCountRef.current,
                 disqualified: disqualifiedRef.current,
-                disqualify_reason: disqualifyReason,
+                disqualify_reason: finalReason,
             });
 
             if (isScheduled && scheduledInterviewIdRef.current) {
@@ -872,7 +896,7 @@ export default function AIPracticePage({ scheduled = false }) {
                     <div className="card metric-card"><h3>⚠️ Warnings</h3><p className="eval-metric warn-count">{warningCount}/{MAX_WARNINGS_BEFORE_DISQUALIFY}</p></div>
                 </div>
                 {raw.detailed_feedback && <div className="card feedback-card"><h3>📝 Feedback</h3><p>{raw.detailed_feedback}</p></div>}
-                {raw.disqualified && <div className="card feedback-card"><h3>🚫 Disqualified</h3><p>{raw.disqualify_reason || 'Policy violation'}</p></div>}
+                {raw.disqualified && <div className="card feedback-card"><h3>🚫 Disqualified</h3><p>{raw.disqualify_reason || disqualifyReasonRef.current || 'Policy violation'}</p></div>}
                 <div className="eval-grid">
                     <div className="card"><h3>💪 Strengths</h3><ul>{(evaluation.strengths || []).map((s, i) => <li key={i} className="text-success">{s}</li>)}</ul></div>
                     <div className="card"><h3>⚠️ Weaknesses</h3><ul>{(evaluation.weaknesses || []).map((w, i) => <li key={i} className="text-warning">{w}</li>)}</ul></div>
@@ -1210,18 +1234,13 @@ export default function AIPracticePage({ scheduled = false }) {
                 <div className="warning-screen" key={showWarning}>
                     <div className="warning-box">
                         <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>⚠️</div>
-                        <div style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>LOOK AT YOUR SCREEN!</div>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>{warningMessage.title}</div>
                         <div style={{ fontSize: '0.95rem', color: '#fca5a5', marginTop: 4 }}>
-                            Keep your full face and eyes centered towards your laptop.
+                            {warningMessage.detail}
                         </div>
-                        <div style={{ fontSize: '1.15rem', marginTop: 10, fontWeight: 600, color: warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY ? '#ef4444' : '#f59e0b' }}>
-                            Warning {Math.min(warningCount, MAX_WARNINGS_BEFORE_DISQUALIFY)} of {MAX_WARNINGS_BEFORE_DISQUALIFY}
+                        <div style={{ fontSize: '1.15rem', marginTop: 10, fontWeight: 700, color: warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY ? '#ef4444' : '#f59e0b' }}>
+                            {warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY ? 'Disqualified (Interview Terminated)' : `Warning ${warningCount} of ${MAX_WARNINGS_BEFORE_DISQUALIFY}`}
                         </div>
-                        {warningCount >= MAX_WARNINGS_BEFORE_DISQUALIFY && (
-                            <div style={{ fontSize: '0.9rem', color: '#ef4444', marginTop: 6, fontWeight: 500 }}>
-                                Maximum warnings reached. Interview terminated.
-                            </div>
-                        )}
                     </div>
                 </div>
             ) : null}

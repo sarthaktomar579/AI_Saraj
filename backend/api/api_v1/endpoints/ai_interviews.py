@@ -9,7 +9,7 @@ from models.user import User
 from models.ai_interview import AIScheduledInterview, AIInterviewReport
 from schemas.user import User as UserSchema
 from schemas.ai_interview import (
-    AIInterviewCreate, AIInterviewDetailResponse, 
+    AIInterviewCreate, AIInterviewUpdate, AIInterviewDetailResponse, 
     AIInterviewQuestionResponse, AIAnswerSubmit, 
     AIInterviewReportResponse, AIInterviewReportCreate
 )
@@ -45,7 +45,64 @@ async def create_interview(
         interviewer_id=current_user.id,
         request_data=request.model_dump()
     )
-    return interview
+    res = await db.execute(select(AIScheduledInterview).where(AIScheduledInterview.id == interview.id))
+    return res.scalars().first()
+
+@router.put("/{pk}", response_model=AIInterviewDetailResponse)
+@router.put("/{pk}/", response_model=AIInterviewDetailResponse)
+async def update_interview(
+    pk: int,
+    request: AIInterviewUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    check_interviewer_role(current_user)
+    result = await db.execute(select(AIScheduledInterview).where(AIScheduledInterview.id == pk))
+    interview = result.scalars().first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    if interview.interviewer_id != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized to edit this interview")
+    if interview.status == 'completed':
+        raise HTTPException(status_code=400, detail="Cannot edit a completed interview")
+    
+    sid = request.student_id or request.student
+    if sid is not None:
+        interview.student_id = sid
+    if request.topic is not None:
+        interview.topic = request.topic
+    if request.difficulty is not None:
+        interview.difficulty = request.difficulty
+    if request.deadline is not None:
+        interview.deadline = request.deadline.replace(tzinfo=None) if request.deadline.tzinfo else request.deadline
+    if request.company_name is not None:
+        interview.company_name = request.company_name
+    if request.selected_tracks is not None:
+        interview.selected_tracks = request.selected_tracks
+    if request.selected_subcategories is not None:
+        interview.selected_subcategories = request.selected_subcategories
+        
+    await db.commit()
+    res = await db.execute(select(AIScheduledInterview).where(AIScheduledInterview.id == pk))
+    return res.scalars().first()
+
+@router.delete("/{pk}")
+@router.delete("/{pk}/")
+async def delete_interview(
+    pk: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+) -> Any:
+    check_interviewer_role(current_user)
+    result = await db.execute(select(AIScheduledInterview).where(AIScheduledInterview.id == pk))
+    interview = result.scalars().first()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    if interview.interviewer_id != current_user.id and current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Not authorized to delete this interview")
+    await db.delete(interview)
+    await db.commit()
+    return {"message": "Interview deleted successfully"}
 
 @router.get("", response_model=List[AIInterviewDetailResponse])
 @router.get("/", response_model=List[AIInterviewDetailResponse])

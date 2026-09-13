@@ -304,7 +304,6 @@ export default function DashboardPage() {
             }
             setDeleteConfirm(null);
         } catch (err) {
-            console.error('Failed to delete:', err);
             setDeleteConfirm(prev => ({
                 ...prev,
                 loading: false,
@@ -1189,53 +1188,7 @@ export default function DashboardPage() {
                     <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px', display: 'grid', gap: 12 }}>
                         {practiceSessions.slice(0, 20).map(s => (
                             <div key={s.id} style={{ position: 'relative' }}>
-                                <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', paddingRight: 40 }}>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteConfirm({
-                                                type: 'session',
-                                                id: s.id,
-                                                title: `${s.topic || 'Practice'} Session`,
-                                                subtitle: `${s.difficulty || 'medium'} · ${new Date(s.started_at).toLocaleDateString()}${s.evaluation ? ` · Score: ${s.evaluation.total_score}/100` : ''}`
-                                            });
-                                        }}
-                                        style={{
-                                            position: 'absolute',
-                                            top: 12,
-                                            right: 12,
-                                            background: 'rgba(239, 68, 68, 0.08)',
-                                            border: '1px solid rgba(239, 68, 68, 0.22)',
-                                            borderRadius: 8,
-                                            color: '#f87171',
-                                            cursor: 'pointer',
-                                            padding: '6px 8px',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            transition: 'all 0.2s ease',
-                                        }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
-                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
-                                            e.currentTarget.style.transform = 'scale(1.08)';
-                                            e.currentTarget.style.boxShadow = '0 0 14px rgba(239, 68, 68, 0.35)';
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
-                                            e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.22)';
-                                            e.currentTarget.style.transform = 'scale(1)';
-                                            e.currentTarget.style.boxShadow = 'none';
-                                        }}
-                                        title="Delete Session"
-                                    >
-                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="3 6 5 6 21 6" />
-                                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                            <line x1="10" y1="11" x2="10" y2="17" />
-                                            <line x1="14" y1="11" x2="14" y2="17" />
-                                        </svg>
-                                    </button>
+                                <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                                     <div>
                                         <strong>{s.topic || 'Practice'}</strong>
                                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
@@ -1243,7 +1196,7 @@ export default function DashboardPage() {
                                             {s.evaluation && <span style={{ color: '#10b981', marginLeft: 8 }}>Score: {s.evaluation.total_score}/100</span>}
                                         </p>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                         <span className={`badge ${s.status === 'completed' ? 'badge-success' : s.status === 'abandoned' ? 'badge-danger' : 'badge-warning'}`}>{s.status}</span>
                                         {s.status === 'completed' && s.evaluation && (
                                             <button
@@ -1262,6 +1215,49 @@ export default function DashboardPage() {
                                                 {expandedPracticeReport === s.id ? 'Hide Report' : 'View Report'}
                                             </button>
                                         )}
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setDeleteConfirm({
+                                                    type: 'session',
+                                                    id: s.id,
+                                                    title: `${s.topic || 'Practice'} Session`,
+                                                    subtitle: `${s.difficulty || 'medium'} · ${new Date(s.started_at).toLocaleDateString()}${s.evaluation ? ` · Score: ${s.evaluation.total_score}/100` : ''}`
+                                                });
+                                            }}
+                                            style={{
+                                                background: 'rgba(239, 68, 68, 0.08)',
+                                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                                borderRadius: 8,
+                                                color: '#f87171',
+                                                cursor: 'pointer',
+                                                padding: '6px 10px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                transition: 'all 0.2s ease',
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.22)';
+                                                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.55)';
+                                                e.currentTarget.style.transform = 'scale(1.08)';
+                                                e.currentTarget.style.boxShadow = '0 0 14px rgba(239, 68, 68, 0.35)';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                                                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+                                                e.currentTarget.style.transform = 'scale(1)';
+                                                e.currentTarget.style.boxShadow = 'none';
+                                            }}
+                                            title="Delete Session"
+                                        >
+                                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="3 6 5 6 21 6" />
+                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                                <line x1="10" y1="11" x2="10" y2="17" />
+                                                <line x1="14" y1="11" x2="14" y2="17" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 </div>
 

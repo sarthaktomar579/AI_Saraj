@@ -8,6 +8,8 @@ SQLALCHEMY_DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgres
 engine = create_async_engine(
     SQLALCHEMY_DATABASE_URL,
     echo=False,
+    pool_pre_ping=True,
+    pool_recycle=300,
     connect_args={
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,

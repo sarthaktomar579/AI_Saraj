@@ -58,7 +58,11 @@ export default function AIInterviewPage() {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <div className="card" style={{ width: 460, textAlign: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16 }}>
+                    <div 
+                        onClick={() => navigate('/dashboard')}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 16, cursor: 'pointer' }}
+                        title="AISaraj Home"
+                    >
                         <img 
                             src="/handshake_logo.png" 
                             alt="AISaraj Logo" 

@@ -1,9 +1,11 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from typing import Optional, List, Dict, Any
 from datetime import datetime
+from schemas.user import User as UserSchema
 
 class AIInterviewCreate(BaseModel):
-    student_id: int
+    student_id: Optional[int] = None
+    student: Optional[int] = None
     topic: str
     difficulty: str
     scheduled_at: datetime
@@ -11,6 +13,42 @@ class AIInterviewCreate(BaseModel):
     company_name: Optional[str] = ''
     selected_tracks: Optional[List[str]] = []
     selected_subcategories: Optional[Dict[str, List[str]]] = {}
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_student_id(cls, values):
+        if isinstance(values, dict):
+            sid = values.get("student_id") or values.get("student")
+            if sid is not None:
+                try:
+                    values["student_id"] = int(sid)
+                    values["student"] = int(sid)
+                except (ValueError, TypeError):
+                    pass
+        return values
+
+class AIInterviewUpdate(BaseModel):
+    student_id: Optional[int] = None
+    student: Optional[int] = None
+    topic: Optional[str] = None
+    difficulty: Optional[str] = None
+    deadline: Optional[datetime] = None
+    company_name: Optional[str] = None
+    selected_tracks: Optional[List[str]] = None
+    selected_subcategories: Optional[Dict[str, List[str]]] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def resolve_student_id(cls, values):
+        if isinstance(values, dict):
+            sid = values.get("student_id") or values.get("student")
+            if sid is not None:
+                try:
+                    values["student_id"] = int(sid)
+                    values["student"] = int(sid)
+                except (ValueError, TypeError):
+                    pass
+        return values
 
 class AIInterviewQuestionResponse(BaseModel):
     id: int
@@ -58,8 +96,12 @@ class AIInterviewDetailResponse(BaseModel):
     status: str
     recording_url: Optional[str] = None
     created_at: datetime
+    student: Optional[UserSchema] = None
+    interviewer: Optional[UserSchema] = None
     questions: Optional[List[AIInterviewQuestionResponse]] = []
     report: Optional[AIInterviewReportResponse] = None
+
+    model_config = {"from_attributes": True}
 
 class AIAnswerSubmit(BaseModel):
     question_id: int

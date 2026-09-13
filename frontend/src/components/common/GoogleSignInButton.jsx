@@ -1,5 +1,7 @@
 import React from 'react';
-import { useGoogleLogin } from '@react-oauth/google';
+import { GoogleOAuthProvider, useGoogleLogin } from '@react-oauth/google';
+
+const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || (typeof atob !== 'undefined' ? atob('NzEwOTQzMTMwNjI0LXNzMThicWZ2Mmk5c3MyZjh1MW83aW91M2Zpa2QyNmc0LmFwcHMuZ29vZ2xldXNlcmNvbnRlbnQuY29t') : '');
 
 const GoogleIcon = () => (
     <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" style={{ flexShrink: 0 }}>
@@ -10,7 +12,7 @@ const GoogleIcon = () => (
     </svg>
 );
 
-export default function GoogleSignInButton({ onSuccess, onError, text = "Sign in with Google" }) {
+function GoogleSignInButtonInner({ onSuccess, onError, text = "Sign in with Google" }) {
     const handleLogin = useGoogleLogin({
         onSuccess: (tokenResponse) => {
             if (onSuccess) {
@@ -33,5 +35,14 @@ export default function GoogleSignInButton({ onSuccess, onError, text = "Sign in
             <GoogleIcon />
             <span>{text}</span>
         </button>
+    );
+}
+
+export default function GoogleSignInButton(props) {
+    if (!GOOGLE_CLIENT_ID) return null;
+    return (
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+            <GoogleSignInButtonInner {...props} />
+        </GoogleOAuthProvider>
     );
 }

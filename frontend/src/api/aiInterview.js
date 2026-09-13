@@ -14,3 +14,5 @@ export const uploadRecording = (id, formData) =>
 export const completeInterview = (id) => client.post(`/ai_interviews/${id}/complete`);
 export const saveInterviewReport = (id, data) => client.post(`/ai_interviews/${id}/report`, data);
 export const getReport = (id) => client.get(`/ai_interviews/${id}/report`);
+export const updateAIInterview = (id, data) => client.put(`/ai_interviews/${id}`, data);
+export const deleteAIInterview = (id) => client.delete(`/ai_interviews/${id}`);

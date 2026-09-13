@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getInterview, submitCode } from '../../api/interviews';
 import CodeEditor from '../../components/CodeEditor/CodeEditor';
 import { useCodeExecution } from '../../hooks/useCodeExecution';
 
 export default function InterviewRoomPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [interview, setInterview] = useState(null);
     const [code, setCode] = useState('');
     const [language, setLanguage] = useState('python');
@@ -24,7 +25,11 @@ export default function InterviewRoomPage() {
 
     return (
         <div className="container">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div 
+                onClick={() => navigate('/dashboard')}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, cursor: 'pointer' }}
+                title="AISaraj Home"
+            >
                 <img 
                     src="/handshake_logo.png" 
                     alt="AISaraj Logo" 

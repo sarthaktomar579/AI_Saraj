@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getAIInterview, getReport } from '../../api/aiInterview';
 
 export default function AIReportPage() {
     const { id } = useParams();
+    const navigate = useNavigate();
     const [interview, setInterview] = useState(null);
     const [report, setReport] = useState(null);
 
@@ -14,16 +15,29 @@ export default function AIReportPage() {
 
     if (!report) return <div className="container">Loading report...</div>;
 
-    const dims = [
-        { key: 'communication', max: 20 }, { key: 'technical_depth', max: 25 },
-        { key: 'code_quality', max: 20 }, { key: 'optimization', max: 15 },
-        { key: 'problem_solving', max: 20 },
+    const isDSA = (interview?.selected_tracks || []).includes('dsa');
+    const dims = isDSA ? [
+        { key: 'communication', label: 'Communication', max: 20 },
+        { key: 'technical_depth', label: 'Technical Depth', max: 25 },
+        { key: 'code_quality', label: 'Code Quality', max: 20 },
+        { key: 'optimization', label: 'Optimization', max: 15 },
+        { key: 'problem_solving', label: 'Problem Solving', max: 20 },
+    ] : [
+        { key: 'communication', label: 'Communication', max: 20 },
+        { key: 'technical_depth', label: 'Technical Depth', max: 25 },
+        { key: 'code_quality', label: 'Best Practices & Architecture', max: 20 },
+        { key: 'optimization', label: 'Performance & Scaling', max: 15 },
+        { key: 'problem_solving', label: 'Conceptual Clarity', max: 20 },
     ];
 
     return (
         <div className="container">
             <Link to="/dashboard" style={{ color: 'var(--text-secondary)', display: 'block', marginBottom: 16 }}>← Dashboard</Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+            <div 
+                onClick={() => navigate('/dashboard')}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, cursor: 'pointer' }}
+                title="AISaraj Home"
+            >
                 <img 
                     src="/handshake_logo.png" 
                     alt="AISaraj Logo" 
@@ -61,10 +75,10 @@ export default function AIReportPage() {
                         {report.hiring_signal}
                     </span>
                 </div>
-                {dims.map(({ key, max }) => (
+                {dims.map(({ key, label, max }) => (
                     <div key={key} style={{ marginBottom: 12 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                            <span style={{ textTransform: 'capitalize' }}>{key.replace('_', ' ')}</span>
+                            <span>{label || key.replace('_', ' ')}</span>
                             <span>{report[key]}/{max}</span>
                         </div>
                         <div className="score-bar"><div className="score-bar-fill" style={{ width: `${(report[key] / max) * 100}%` }} /></div>

@@ -29,6 +29,9 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)) -> A
     if result.scalars().first():
         raise HTTPException(status_code=400, detail="Username already taken")
 
+    # Normalize candidate/student role
+    role = 'student' if (user_in.role or '').lower() in ['candidate', 'student'] else user_in.role
+
     # Create user
     db_user = User(
         email=user_in.email,
@@ -36,7 +39,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_db)) -> A
         password=get_password_hash(user_in.password),
         first_name=user_in.first_name,
         last_name=user_in.last_name,
-        role=user_in.role
+        role=role
     )
     db.add(db_user)
     await db.commit()
@@ -113,6 +116,9 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
                 username = f"{base_username}_{suffix}"
                 suffix += 1
 
+            # Normalize role
+            chosen_role = 'student' if (payload.role or '').lower() in ['candidate', 'student'] else (payload.role or "student")
+
             # Create user with an unguessable password hash
             user = User(
                 email=email,
@@ -120,7 +126,7 @@ async def google_auth(payload: GoogleLoginRequest, db: AsyncSession = Depends(ge
                 password=get_password_hash(secrets.token_urlsafe(32)),
                 first_name=first_name,
                 last_name=last_name,
-                role=payload.role or "student",
+                role=chosen_role,
                 avatar_url=picture,
                 is_verified=True,
                 is_active=True,
@@ -172,6 +178,8 @@ async def update_current_user_profile(
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     update_data = user_in.model_dump(exclude_unset=True)
+    if 'role' in update_data and (update_data['role'] or '').lower() in ['candidate', 'student']:
+        update_data['role'] = 'student'
     for field, value in update_data.items():
         setattr(current_user, field, value)
     db.add(current_user)

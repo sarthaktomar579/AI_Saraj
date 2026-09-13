@@ -117,7 +117,11 @@ export function useSpeech() {
         silenceCheckRef.current = setInterval(() => {
             const elapsed = Date.now() - lastSpeechTimeRef.current;
             if (elapsed >= silenceMs) {
-                // Silence detected!
+                // Silence detected! Clear interval immediately
+                if (silenceCheckRef.current) {
+                    clearInterval(silenceCheckRef.current);
+                    silenceCheckRef.current = null;
+                }
                 const transcript = finalTranscriptRef.current.trim();
                 stopListening();
                 if (onSilence) onSilence(transcript);

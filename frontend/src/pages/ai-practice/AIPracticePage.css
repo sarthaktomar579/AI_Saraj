@@ -24,6 +24,12 @@
   border: 3px solid var(--accent);
   box-shadow: 0 0 30px rgba(108, 99, 255, 0.4);
   animation: float 3s ease-in-out infinite;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.start-avatar:hover {
+  box-shadow: 0 0 45px rgba(139, 92, 246, 0.7);
 }
 
 @keyframes float {
