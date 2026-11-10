@@ -13,6 +13,8 @@ from models.interview import Interview
 from models.ai_interview import AIScheduledInterview, AIInterviewReport
 from models.practice import PracticeSession
 from schemas.dashboard import DashboardSummaryResponse, DashboardStats
+from schemas.jobs import JobPulseResponse
+from services.job_service import get_live_tech_jobs
 
 router = APIRouter()
 
@@ -144,4 +146,20 @@ async def get_dashboard_summary(
     }
 
     return response_data
+
+@router.get("/jobs", response_model=JobPulseResponse)
+@router.get("/jobs/", response_model=JobPulseResponse)
+async def get_dashboard_jobs(
+    track: Optional[str] = None,
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Real-Time Tech Jobs & Hiring Pulse:
+    - Cached for 15 minutes (in-memory)
+    - Sub-millisecond latency on cache hits
+    - Circuit breaker with curated fallbacks
+    - Automatically mapped to candidate's track (frontend/backend/fullstack/data_analyst)
+    """
+    return await get_live_tech_jobs(track=track)
+
 

@@ -465,3 +465,23 @@ select option:hover {
   border: 2px solid var(--bg-primary);
 }
 ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.5); }
+
+/* Dashboard 2-Column Responsive Layout */
+.dashboard-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 28px;
+  align-items: flex-start;
+}
+
+@media (max-width: 1040px) {
+  .dashboard-layout-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.9); }
+}
+

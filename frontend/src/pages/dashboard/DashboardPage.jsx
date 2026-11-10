@@ -5,6 +5,7 @@ import { listInterviews } from '../../api/interviews';
 import { listSessions, deleteSession } from '../../api/aiPractice';
 import { listAIInterviews, scheduleAIInterview, updateAIInterview, deleteAIInterview, listStudents, getReport } from '../../api/aiInterview';
 import { getDashboardSummary } from '../../api/dashboard';
+import LiveJobsWidget from '../../components/dashboard/LiveJobsWidget';
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
@@ -394,7 +395,7 @@ export default function DashboardPage() {
                 </div>
             </header>
 
-            <div className="container" style={{ maxWidth: 1080, margin: '0 auto', padding: '32px 24px', width: '100%', flex: 1 }}>
+            <div className="container" style={{ maxWidth: 1240, margin: '0 auto', padding: '32px 24px', width: '100%', flex: 1 }}>
 
             {/* Quick Actions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
@@ -709,7 +710,10 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            {/* Recent Interviews (human) */}
+            {/* Main Content & Side Dashboard Layout */}
+            <div className="dashboard-layout-grid">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24, minWidth: 0 }}>
+                    {/* Recent Interviews (human) */}
             {interviews.length > 0 && (
                 <>
                     <h2 style={{ marginBottom: 16 }}>Recent Interviews</h2>
@@ -1363,6 +1367,13 @@ export default function DashboardPage() {
                     </div>
                 </>
             )}
+                </div>
+
+                {/* Right Side Dashboard: Real-Time Tech Jobs Pulse */}
+                <aside style={{ position: 'sticky', top: 90 }}>
+                    <LiveJobsWidget defaultTrack={user?.role === 'student' ? 'all' : 'backend'} />
+                </aside>
+            </div>
             </div>
 
             {/* Logout Confirmation Modal */}

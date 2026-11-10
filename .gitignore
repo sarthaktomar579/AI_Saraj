@@ -13,6 +13,8 @@ build/
 dist/
 
 # Environment & secrets
+.env
+*.pem
 
 # Database
 db.sqlite3
