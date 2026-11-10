@@ -61,11 +61,11 @@ async def get_dashboard_summary(
         if is_interviewer:
             stmt = select(AIScheduledInterview).where(
                 AIScheduledInterview.interviewer_id == current_user.id
-            ).order_by(AIScheduledInterview.created_at.desc()).limit(20)
+            ).order_by(AIScheduledInterview.created_at.desc()).limit(100)
         else:
             stmt = select(AIScheduledInterview).where(
                 AIScheduledInterview.student_id == current_user.id
-            ).order_by(AIScheduledInterview.created_at.desc()).limit(20)
+            ).order_by(AIScheduledInterview.created_at.desc()).limit(100)
         res = await db.execute(stmt)
         return res.scalars().all()
 
@@ -74,7 +74,7 @@ async def get_dashboard_summary(
         if not is_interviewer:
             stmt = select(PracticeSession).where(
                 PracticeSession.student_id == current_user.id
-            ).order_by(PracticeSession.started_at.desc()).limit(20)
+            ).order_by(PracticeSession.started_at.desc()).limit(100)
             res = await db.execute(stmt)
             return res.scalars().all()
         return []

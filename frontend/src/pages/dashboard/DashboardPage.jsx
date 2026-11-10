@@ -20,6 +20,10 @@ export default function DashboardPage() {
     const [interviews, setInterviews] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [aiInterviews, setAIInterviews] = useState([]);
+    const [aiPage, setAiPage] = useState(1);
+    const AI_PAGE_SIZE = 5;
+    const [practicePage, setPracticePage] = useState(1);
+    const PRACTICE_PAGE_SIZE = 6;
     const [dashboardStats, setDashboardStats] = useState(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [showSchedule, setShowSchedule] = useState(false);
@@ -742,8 +746,8 @@ export default function DashboardPage() {
                     <p style={{ color: 'var(--text-secondary)', margin: 0 }}>No AI interviews yet.</p>
                 </div>
             ) : (
-                <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px', display: 'grid', gap: 14, marginBottom: 32 }}>
-                    {aiInterviews.slice(0, 20).map(ai => (
+                <div style={{ display: 'grid', gap: 14, marginBottom: 32 }}>
+                    {aiInterviews.slice((aiPage - 1) * AI_PAGE_SIZE, aiPage * AI_PAGE_SIZE).map(ai => (
                         <div key={ai.id}>
                             <div style={{ borderRadius: 14, overflow: 'hidden', border: selectedInterviewId === ai.id ? '1px solid #7c3aed' : '1px solid rgba(255,255,255,0.08)', background: 'var(--card-bg, #1a1a2e)', transition: 'all 0.2s ease' }}>
                             <div 
@@ -1216,6 +1220,80 @@ export default function DashboardPage() {
                             )}
                         </div>
                     ))}
+
+                    {/* AI Interviews Pagination Bar */}
+                    {aiInterviews.length > AI_PAGE_SIZE && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '12px 16px',
+                            borderRadius: 12,
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.07)',
+                            marginTop: 4
+                        }}>
+                            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                Showing {((aiPage - 1) * AI_PAGE_SIZE) + 1}–{Math.min(aiPage * AI_PAGE_SIZE, aiInterviews.length)} of {aiInterviews.length} interviews
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                    onClick={() => setAiPage(p => Math.max(1, p - 1))}
+                                    disabled={aiPage <= 1}
+                                    style={{
+                                        padding: '5px 12px',
+                                        borderRadius: 8,
+                                        border: '1px solid',
+                                        borderColor: aiPage <= 1 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                                        background: aiPage <= 1 ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                                        color: aiPage <= 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        cursor: aiPage <= 1 ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    ‹ Prev
+                                </button>
+                                {Array.from({ length: Math.ceil(aiInterviews.length / AI_PAGE_SIZE) }, (_, i) => i + 1).map(pNum => (
+                                    <button
+                                        key={pNum}
+                                        onClick={() => setAiPage(pNum)}
+                                        style={{
+                                            width: 28,
+                                            height: 28,
+                                            borderRadius: 7,
+                                            border: '1px solid',
+                                            borderColor: aiPage === pNum ? '#8b5cf6' : 'transparent',
+                                            background: aiPage === pNum ? 'rgba(139, 92, 246, 0.35)' : 'transparent',
+                                            color: aiPage === pNum ? '#fff' : 'var(--text-secondary)',
+                                            fontSize: '0.78rem',
+                                            fontWeight: aiPage === pNum ? 700 : 500,
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        {pNum}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setAiPage(p => Math.min(Math.ceil(aiInterviews.length / AI_PAGE_SIZE), p + 1))}
+                                    disabled={aiPage >= Math.ceil(aiInterviews.length / AI_PAGE_SIZE)}
+                                    style={{
+                                        padding: '5px 12px',
+                                        borderRadius: 8,
+                                        border: '1px solid',
+                                        borderColor: aiPage >= Math.ceil(aiInterviews.length / AI_PAGE_SIZE) ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                                        background: aiPage >= Math.ceil(aiInterviews.length / AI_PAGE_SIZE) ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                                        color: aiPage >= Math.ceil(aiInterviews.length / AI_PAGE_SIZE) ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        cursor: aiPage >= Math.ceil(aiInterviews.length / AI_PAGE_SIZE) ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    Next ›
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -1223,8 +1301,8 @@ export default function DashboardPage() {
             {user?.role === 'student' && practiceSessions.length > 0 && (
                 <>
                     <h2 style={{ marginBottom: 16 }}>Practice Sessions</h2>
-                    <div style={{ maxHeight: '400px', overflowY: 'auto', paddingRight: '8px', display: 'grid', gap: 12 }}>
-                        {practiceSessions.slice(0, 20).map(s => (
+                    <div style={{ display: 'grid', gap: 12 }}>
+                        {practiceSessions.slice((practicePage - 1) * PRACTICE_PAGE_SIZE, practicePage * PRACTICE_PAGE_SIZE).map(s => (
                             <div key={s.id} style={{ position: 'relative' }}>
                                 <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                                     <div>
@@ -1365,6 +1443,91 @@ export default function DashboardPage() {
                             </div>
                         ))}
                     </div>
+
+                    {/* Practice Sessions Pagination Bar */}
+                    {practiceSessions.length > PRACTICE_PAGE_SIZE && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '12px 16px',
+                            borderRadius: 12,
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.07)',
+                            marginTop: 10,
+                            flexWrap: 'wrap',
+                            gap: 10
+                        }}>
+                            <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                Showing {((practicePage - 1) * PRACTICE_PAGE_SIZE) + 1}–{Math.min(practicePage * PRACTICE_PAGE_SIZE, practiceSessions.length)} of {practiceSessions.length} practice sessions
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button
+                                    onClick={() => setPracticePage(p => Math.max(1, p - 1))}
+                                    disabled={practicePage <= 1}
+                                    style={{
+                                        padding: '5px 12px',
+                                        borderRadius: 8,
+                                        border: '1px solid',
+                                        borderColor: practicePage <= 1 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                                        background: practicePage <= 1 ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                                        color: practicePage <= 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        cursor: practicePage <= 1 ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    ‹ Prev
+                                </button>
+                                {Array.from({ length: Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE) }, (_, i) => i + 1)
+                                    .filter(pNum => {
+                                        const total = Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE);
+                                        return pNum === 1 || pNum === total || Math.abs(pNum - practicePage) <= 1;
+                                    })
+                                    .map((pNum, idx, arr) => (
+                                        <React.Fragment key={pNum}>
+                                            {idx > 0 && arr[idx - 1] !== pNum - 1 && (
+                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', padding: '0 2px' }}>…</span>
+                                            )}
+                                            <button
+                                                onClick={() => setPracticePage(pNum)}
+                                                style={{
+                                                    width: 28,
+                                                    height: 28,
+                                                    borderRadius: 7,
+                                                    border: '1px solid',
+                                                    borderColor: practicePage === pNum ? '#8b5cf6' : 'transparent',
+                                                    background: practicePage === pNum ? 'rgba(139, 92, 246, 0.35)' : 'transparent',
+                                                    color: practicePage === pNum ? '#fff' : 'var(--text-secondary)',
+                                                    fontSize: '0.78rem',
+                                                    fontWeight: practicePage === pNum ? 700 : 500,
+                                                    cursor: 'pointer'
+                                                }}
+                                            >
+                                                {pNum}
+                                            </button>
+                                        </React.Fragment>
+                                    ))}
+                                <button
+                                    onClick={() => setPracticePage(p => Math.min(Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE), p + 1))}
+                                    disabled={practicePage >= Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE)}
+                                    style={{
+                                        padding: '5px 12px',
+                                        borderRadius: 8,
+                                        border: '1px solid',
+                                        borderColor: practicePage >= Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE) ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                                        background: practicePage >= Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE) ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                                        color: practicePage >= Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE) ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                                        fontSize: '0.78rem',
+                                        fontWeight: 600,
+                                        cursor: practicePage >= Math.ceil(practiceSessions.length / PRACTICE_PAGE_SIZE) ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    Next ›
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
                 </div>
