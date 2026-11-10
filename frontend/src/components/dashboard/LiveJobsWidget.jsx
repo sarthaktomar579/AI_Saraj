@@ -56,11 +56,11 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
             {/* Header with Live Beacon */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: '1.25rem' }}>💼</span>
+                    <span style={{ fontSize: '1.4rem' }}>🇮🇳</span>
                     <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
-                                Live Tech Jobs Pulse
+                                India Tech Jobs Pulse
                             </h3>
                             <span style={{
                                 display: 'inline-flex',
@@ -87,7 +87,7 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                             </span>
                         </div>
                         <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            Actively hiring roles matching your interview tracks
+                            Bengaluru · Hyderabad · Pune · Gurugram · Remote India
                         </p>
                     </div>
                 </div>
@@ -297,7 +297,7 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                     <span style={{ color: '#10b981' }}>⚡</span>
                     {metaInfo.cached ? 'Low-Latency Cache Hit (< 2ms)' : 'Live Synced'}
                 </span>
-                <span>Powered by Arbeitnow API</span>
+                <span>🇮🇳 Top Indian Tech Hubs</span>
             </div>
         </div>
     );
