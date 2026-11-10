@@ -151,15 +151,18 @@ async def get_dashboard_summary(
 @router.get("/jobs/", response_model=JobPulseResponse)
 async def get_dashboard_jobs(
     track: Optional[str] = None,
+    page: int = 1,
+    limit: int = 4,
     current_user: User = Depends(get_current_user)
 ) -> Any:
     """
-    Real-Time Tech Jobs & Hiring Pulse:
+    Real-Time Indian Tech Jobs & Hiring Pulse with Pagination:
     - Cached for 15 minutes (in-memory)
     - Sub-millisecond latency on cache hits
     - Circuit breaker with curated fallbacks
     - Automatically mapped to candidate's track (frontend/backend/fullstack/data_analyst)
+    - Server-side pagination (page & limit)
     """
-    return await get_live_tech_jobs(track=track)
+    return await get_live_tech_jobs(track=track, page=page, limit=limit)
 
 

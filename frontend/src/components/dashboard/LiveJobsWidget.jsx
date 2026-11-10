@@ -9,7 +9,6 @@ const TRACK_FILTERS = [
     { key: 'data_analyst', label: 'Data' }
 ];
 
-// Aesthetic brand accent colors for Indian tech companies
 const COMPANY_COLORS = {
     'Razorpay': { bg: 'linear-gradient(135deg, #1d4ed8, #3b82f6)', text: '#fff', char: 'R' },
     'Swiggy': { bg: 'linear-gradient(135deg, #c2410c, #f97316)', text: '#fff', char: 'S' },
@@ -25,21 +24,29 @@ const COMPANY_COLORS = {
     'InMobi': { bg: 'linear-gradient(135deg, #0e7490, #06b6d4)', text: '#fff', char: 'I' },
 };
 
+const PAGE_SIZE = 4;
+
 export default function LiveJobsWidget({ defaultTrack = 'all' }) {
     const [jobs, setJobs] = useState([]);
     const [selectedTrack, setSelectedTrack] = useState(defaultTrack);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalJobs, setTotalJobs] = useState(0);
     const [loading, setLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [metaInfo, setMetaInfo] = useState({ cached: false, updated_at: 0 });
 
-    const fetchJobs = async (track, manual = false) => {
+    const fetchJobs = async (track, pageNum = 1, manual = false) => {
         if (manual) setIsRefreshing(true);
         else setLoading(true);
 
         try {
-            const { data } = await getDashboardJobs(track);
+            const { data } = await getDashboardJobs(track, pageNum, PAGE_SIZE);
             if (data && data.jobs) {
                 setJobs(data.jobs);
+                setPage(data.page || pageNum);
+                setTotalPages(data.total_pages || 1);
+                setTotalJobs(data.total_jobs || 0);
                 setMetaInfo({
                     cached: data.cached,
                     updated_at: data.updated_at,
@@ -54,9 +61,15 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
         }
     };
 
+    // Refetch when track or page changes
     useEffect(() => {
-        fetchJobs(selectedTrack);
-    }, [selectedTrack]);
+        fetchJobs(selectedTrack, page);
+    }, [selectedTrack, page]);
+
+    const handleTrackSelect = (trackKey) => {
+        setSelectedTrack(trackKey);
+        setPage(1); // Reset to page 1 on filter change
+    };
 
     const getCompanyBadge = (companyName) => {
         const found = COMPANY_COLORS[companyName];
@@ -135,7 +148,7 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
 
                 {/* 1-Click Sync Button */}
                 <button
-                    onClick={() => fetchJobs(selectedTrack, true)}
+                    onClick={() => fetchJobs(selectedTrack, page, true)}
                     disabled={isRefreshing}
                     title="Sync Latest Indian Job Openings"
                     style={{
@@ -199,7 +212,7 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                     return (
                         <button
                             key={t.key}
-                            onClick={() => setSelectedTrack(t.key)}
+                            onClick={() => handleTrackSelect(t.key)}
                             style={{
                                 padding: '5px 12px',
                                 borderRadius: 18,
@@ -234,18 +247,16 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                 })}
             </div>
 
-            {/* Job Listings Stream */}
+            {/* Job Listings Stream (Clean 4 Cards per Page) */}
             <div style={{
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 8,
-                maxHeight: 400,
-                overflowY: 'auto',
-                paddingRight: 3
+                minHeight: 280
             }}>
                 {loading ? (
                     /* Zero Cumulative Layout Shift Skeleton */
-                    [1, 2, 3].map(i => (
+                    [1, 2, 3, 4].map(i => (
                         <div key={i} style={{
                             padding: '12px 14px',
                             borderRadius: 12,
@@ -255,7 +266,7 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                             gap: 10,
                             alignItems: 'center'
                         }}>
-                            <div style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255, 255, 255, 0.06)' }} />
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255, 255, 255, 0.06)' }} />
                             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                                 <div style={{ width: '65%', height: 13, background: 'rgba(255, 255, 255, 0.07)', borderRadius: 4 }} />
                                 <div style={{ width: '40%', height: 10, background: 'rgba(255, 255, 255, 0.04)', borderRadius: 4 }} />
@@ -264,7 +275,7 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                     ))
                 ) : jobs.length === 0 ? (
                     <div style={{
-                        padding: '24px 12px',
+                        padding: '32px 12px',
                         textAlign: 'center',
                         color: 'var(--text-secondary)',
                         fontSize: '0.85rem'
@@ -409,13 +420,94 @@ export default function LiveJobsWidget({ defaultTrack = 'all' }) {
                 )}
             </div>
 
+            {/* Pagination Controls Bar */}
+            {totalPages > 1 && (
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 4px 2px',
+                    borderTop: '1px solid rgba(255, 255, 255, 0.07)'
+                }}>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                        Page <strong style={{ color: '#fff' }}>{page}</strong> of <strong style={{ color: '#fff' }}>{totalPages}</strong> ({totalJobs} jobs)
+                    </span>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1}
+                            style={{
+                                padding: '4px 10px',
+                                borderRadius: 8,
+                                border: '1px solid',
+                                borderColor: page <= 1 ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                                background: page <= 1 ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                                color: page <= 1 ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                                fontSize: '0.74rem',
+                                fontWeight: 600,
+                                cursor: page <= 1 ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            ‹ Prev
+                        </button>
+
+                        {/* Page Numbers */}
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(pNum => (
+                            <button
+                                key={pNum}
+                                onClick={() => setPage(pNum)}
+                                style={{
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: 6,
+                                    border: '1px solid',
+                                    borderColor: page === pNum ? '#8b5cf6' : 'transparent',
+                                    background: page === pNum ? 'rgba(139, 92, 246, 0.35)' : 'transparent',
+                                    color: page === pNum ? '#fff' : 'var(--text-secondary)',
+                                    fontSize: '0.73rem',
+                                    fontWeight: page === pNum ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.15s ease'
+                                }}
+                            >
+                                {pNum}
+                            </button>
+                        ))}
+
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages}
+                            style={{
+                                padding: '4px 10px',
+                                borderRadius: 8,
+                                border: '1px solid',
+                                borderColor: page >= totalPages ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.15)',
+                                background: page >= totalPages ? 'transparent' : 'rgba(255, 255, 255, 0.05)',
+                                color: page >= totalPages ? 'rgba(255, 255, 255, 0.25)' : '#fff',
+                                fontSize: '0.74rem',
+                                fontWeight: 600,
+                                cursor: page >= totalPages ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.15s ease'
+                            }}
+                        >
+                            Next ›
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Performance & Optimization Footer */}
             <div style={{
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                paddingTop: 8,
-                borderTop: '1px solid rgba(255, 255, 255, 0.07)',
+                paddingTop: totalPages > 1 ? 0 : 8,
+                borderTop: totalPages > 1 ? 'none' : '1px solid rgba(255, 255, 255, 0.07)',
                 fontSize: '0.72rem',
                 color: 'var(--text-secondary)'
             }}>

@@ -14,8 +14,11 @@ class JobPosting(BaseModel):
 
 class JobPulseResponse(BaseModel):
     total_jobs: int
+    page: int = 1
+    limit: int = 4
+    total_pages: int = 1
     updated_at: float
-    source: str = "Arbeitnow Real-Time Feed"
+    source: str = "India Tech Pulse"
     cached: bool = False
     jobs: List[JobPosting]
 

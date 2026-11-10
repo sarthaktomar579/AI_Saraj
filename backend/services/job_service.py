@@ -228,12 +228,17 @@ def _sync_fetch_indian_jobs() -> List[JobPosting]:
     # Merge external India jobs with Indian Tech Hub roles
     return external_indian_jobs + base_indian_jobs
 
-async def get_live_tech_jobs(track: Optional[str] = None) -> JobPulseResponse:
+async def get_live_tech_jobs(
+    track: Optional[str] = None,
+    page: int = 1,
+    limit: int = 4
+) -> JobPulseResponse:
     """
-    Returns 100% Indian Tech Jobs using Cache-Aside Pattern:
+    Returns 100% Indian Tech Jobs using Cache-Aside and Server-Side Pagination:
     1. Responds in < 1ms from In-Memory RAM Cache if within 15min TTL.
     2. Filters exclusively for Indian Tech Hubs (Bengaluru, Hyderabad, Pune, Gurugram, etc.).
     3. Categorizes by candidate track (frontend, backend, fullstack, data_analyst).
+    4. Server-Side Paginates results to reduce DOM memory and transmission bandwidth.
     """
     now = time.time()
     cached = False
@@ -261,10 +266,23 @@ async def get_live_tech_jobs(track: Optional[str] = None) -> JobPulseResponse:
         track_lower = track.lower()
         filtered_jobs = [j for j in all_jobs if j.track == track_lower or j.track == 'fullstack']
 
+    # Server-Side Pagination Calculation
+    total_items = len(filtered_jobs)
+    safe_limit = max(1, min(limit, 20))
+    total_pages = max(1, (total_items + safe_limit - 1) // safe_limit)
+    safe_page = max(1, min(page, total_pages))
+
+    start_idx = (safe_page - 1) * safe_limit
+    end_idx = start_idx + safe_limit
+    paginated_jobs = filtered_jobs[start_idx:end_idx]
+
     return JobPulseResponse(
-        total_jobs=len(filtered_jobs),
+        total_jobs=total_items,
+        page=safe_page,
+        limit=safe_limit,
+        total_pages=total_pages,
         updated_at=_job_cache["timestamp"] or now,
         source="India Tech Pulse (Bengaluru, Hyderabad, Pune, Gurgaon)",
         cached=cached,
-        jobs=filtered_jobs
+        jobs=paginated_jobs
     )
