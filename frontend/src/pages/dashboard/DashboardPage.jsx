@@ -395,7 +395,7 @@ export default function DashboardPage() {
                 </div>
             </header>
 
-            <div className="container" style={{ maxWidth: 1240, margin: '0 auto', padding: '32px 24px', width: '100%', flex: 1 }}>
+            <div className="container" style={{ maxWidth: 1280, margin: '0 auto', padding: '32px 24px', width: '100%', flex: 1 }}>
 
             {/* Quick Actions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 32 }}>
