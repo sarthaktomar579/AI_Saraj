@@ -6,8 +6,8 @@ class AIScheduledInterview(Base):
     __tablename__ = 'ai_scheduled_interviews'
 
     id = Column(Integer, primary_key=True, index=True)
-    interviewer_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    student_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    interviewer_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    student_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     topic = Column(String(100), nullable=False)
     difficulty = Column(String(10), nullable=False)
     scheduled_at = Column(DateTime, nullable=False)
@@ -15,9 +15,9 @@ class AIScheduledInterview(Base):
     company_name = Column(String(200), default='')
     selected_tracks = Column(JSON, default=list)
     selected_subcategories = Column(JSON, default=dict)
-    status = Column(String(20), default='scheduled')
+    status = Column(String(20), default='scheduled', index=True)
     recording_url = Column(String(200), nullable=True)
-    created_at = Column(DateTime, default=func.now())
+    created_at = Column(DateTime, default=func.now(), index=True)
 
     interviewer = relationship("User", foreign_keys=[interviewer_id], lazy="selectin")
     student = relationship("User", foreign_keys=[student_id], lazy="selectin")

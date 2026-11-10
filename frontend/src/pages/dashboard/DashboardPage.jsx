@@ -4,6 +4,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { listInterviews } from '../../api/interviews';
 import { listSessions, deleteSession } from '../../api/aiPractice';
 import { listAIInterviews, scheduleAIInterview, updateAIInterview, deleteAIInterview, listStudents, getReport } from '../../api/aiInterview';
+import { getDashboardSummary } from '../../api/dashboard';
 
 const TRACKS = [
     { key: 'frontend', label: 'Frontend', subs: ['HTML', 'CSS', 'JavaScript', 'React'] },
@@ -18,6 +19,8 @@ export default function DashboardPage() {
     const [interviews, setInterviews] = useState([]);
     const [sessions, setSessions] = useState([]);
     const [aiInterviews, setAIInterviews] = useState([]);
+    const [dashboardStats, setDashboardStats] = useState(null);
+    const [dashboardLoading, setDashboardLoading] = useState(true);
     const [showSchedule, setShowSchedule] = useState(false);
     const [students, setStudents] = useState([]);
     const [scheduleForm, setScheduleForm] = useState({
@@ -121,14 +124,34 @@ export default function DashboardPage() {
         }
     };
 
-    useEffect(() => {
-        listInterviews().then(r => setInterviews(r.data.results || r.data)).catch(() => {});
-        if (user?.role === 'student') {
-            listSessions().then(r => setSessions(r.data.results || r.data)).catch(() => {});
+    const loadDashboardData = async () => {
+        setDashboardLoading(true);
+        try {
+            const { data } = await getDashboardSummary();
+            if (data) {
+                if (data.recent_interviews) setInterviews(data.recent_interviews);
+                if (data.ai_interviews) setAIInterviews(data.ai_interviews);
+                if (data.practice_sessions) setSessions(data.practice_sessions);
+                if (data.students) setStudents(data.students);
+                if (data.stats) setDashboardStats(data.stats);
+            }
+        } catch (err) {
+            console.warn('[Dashboard] Aggregated summary fallback to parallel endpoints:', err);
+            // Parallel fallback to individual endpoints if summary route is unavailable
+            Promise.allSettled([
+                listInterviews().then(r => setInterviews(r.data.results || r.data)),
+                user?.role === 'student' ? listSessions().then(r => setSessions(r.data.results || r.data)) : Promise.resolve(),
+                listAIInterviews().then(r => setAIInterviews(r.data.results || r.data)),
+                (user?.role === 'interviewer' || user?.role === 'admin') ? listStudents().then(r => setStudents(r.data)) : Promise.resolve()
+            ]);
+        } finally {
+            setDashboardLoading(false);
         }
-        listAIInterviews().then(r => setAIInterviews(r.data.results || r.data)).catch(() => {});
-        if (user?.role === 'interviewer' || user?.role === 'admin') {
-            listStudents().then(r => setStudents(r.data)).catch(() => {});
+    };
+
+    useEffect(() => {
+        if (user) {
+            loadDashboardData();
         }
     }, [user]);
 
@@ -389,9 +412,20 @@ export default function DashboardPage() {
                 )}
                 <div className="card">
                     <h3>📊 My Stats</h3>
-                    <p style={{ color: 'var(--text-secondary)' }}>
-                        {interviews.length} interviews · {practiceSessions.length} practice sessions · {aiInterviews.length} AI interviews
-                    </p>
+                    {dashboardLoading && !dashboardStats ? (
+                        <p style={{ color: 'var(--text-secondary)' }}>Loading live metrics...</p>
+                    ) : (
+                        <div>
+                            <p style={{ color: 'var(--text-secondary)', margin: '0 0 4px 0' }}>
+                                {(dashboardStats?.total_interviews ?? interviews.length)} interviews · {(dashboardStats?.practice_count ?? practiceSessions.length)} practice sessions · {(dashboardStats?.ai_interview_count ?? aiInterviews.length)} AI interviews
+                            </p>
+                            {dashboardStats?.average_score > 0 && (
+                                <span style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>
+                                    ⚡ Avg AI Score: {dashboardStats.average_score}/100 ({dashboardStats.completed_ai_count} completed)
+                                </span>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

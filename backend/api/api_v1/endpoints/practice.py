@@ -11,6 +11,7 @@ from schemas.practice import (
     StartQuestionsResponse, AnswerSubmit, PracticeEvaluationResponse, EvaluateRequest
 )
 from services.practice_service import practice_service
+from api.api_v1.endpoints.dashboard import invalidate_dashboard_cache
 
 from datetime import datetime, timezone
 
@@ -33,6 +34,7 @@ async def create_session(
         session_type=request.session_type,
         scheduled_interview_id=request.scheduled_interview_id
     )
+    invalidate_dashboard_cache(current_user.id)
     return session
 
 @router.get("", response_model=List[SessionDetailResponse])
@@ -89,6 +91,7 @@ async def delete_session_endpoint(
         
     await db.delete(session)
     await db.commit()
+    invalidate_dashboard_cache(current_user.id)
     return {"message": "Session deleted"}
 
 @router.get("/{pk}", response_model=SessionDetailResponse)

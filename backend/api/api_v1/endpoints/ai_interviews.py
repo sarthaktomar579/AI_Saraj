@@ -14,6 +14,7 @@ from schemas.ai_interview import (
     AIInterviewReportResponse, AIInterviewReportCreate
 )
 from services.ai_interview_service import ai_interview_service
+from api.api_v1.endpoints.dashboard import invalidate_dashboard_cache
 
 router = APIRouter()
 
@@ -45,6 +46,9 @@ async def create_interview(
         interviewer_id=current_user.id,
         request_data=request.model_dump()
     )
+    invalidate_dashboard_cache(current_user.id)
+    if interview.student_id:
+        invalidate_dashboard_cache(interview.student_id)
     res = await db.execute(select(AIScheduledInterview).where(AIScheduledInterview.id == interview.id))
     return res.scalars().first()
 
@@ -100,8 +104,13 @@ async def delete_interview(
         raise HTTPException(status_code=404, detail="Interview not found")
     if interview.interviewer_id != current_user.id and current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Not authorized to delete this interview")
+    student_id = interview.student_id
+    interviewer_id = interview.interviewer_id
     await db.delete(interview)
     await db.commit()
+    invalidate_dashboard_cache(interviewer_id)
+    if student_id:
+        invalidate_dashboard_cache(student_id)
     return {"message": "Interview deleted successfully"}
 
 @router.get("", response_model=List[AIInterviewDetailResponse])

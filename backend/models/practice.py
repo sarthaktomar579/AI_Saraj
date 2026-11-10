@@ -6,16 +6,16 @@ class PracticeSession(Base):
     __tablename__ = 'practice_sessions'
 
     id = Column(Integer, primary_key=True, index=True)
-    student_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    student_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     topic = Column(String(100), nullable=False)
     difficulty = Column(String(10), nullable=False)
     selected_tracks = Column(JSON, default=list)
     selected_subcategories = Column(JSON, default=dict)
     session_type = Column(String(20), default='practice')
     scheduled_interview_id = Column(Integer, nullable=True)
-    status = Column(String(20), default='active')
+    status = Column(String(20), default='active', index=True)
     current_q_index = Column(Integer, default=0)
-    started_at = Column(DateTime, default=func.now())
+    started_at = Column(DateTime, default=func.now(), index=True)
     completed_at = Column(DateTime, nullable=True)
 
     student = relationship("User", lazy="selectin")
@@ -26,7 +26,7 @@ class AIQuestion(Base):
     __tablename__ = 'ai_questions'
 
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(Integer, ForeignKey('practice_sessions.id', ondelete='CASCADE'), nullable=False)
+    session_id = Column(Integer, ForeignKey('practice_sessions.id', ondelete='CASCADE'), nullable=False, index=True)
     question_text = Column(Text, nullable=False)
     difficulty_level = Column(String(10), nullable=False)
     question_type = Column(String(20), nullable=False)

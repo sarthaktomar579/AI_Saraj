@@ -1,0 +1,973 @@
+================================================================================
+                    AI SARAJ: TECHNICAL ARCHITECTURE & IMPLEMENTATION MANUAL
+                 Comprehensive 360-Degree System Documentation & Defense Guide
+================================================================================
+Generated for: Technical Viva, System Design Defense, and Engineering Knowledge Transfer
+Application Name: AISaraj (AI-Driven Technical Interviewer & Practice Platform)
+Architecture: Single-Page Application (SPA) + Asynchronous REST API + Micro-AI Services
+Target Platform: Full-Stack Web Application (React, FastAPI, PostgreSQL, Gemini AI)
+================================================================================
+
+
+TABLE OF CONTENTS
+--------------------------------------------------------------------------------
+1.  PROJECT OVERVIEW & CORE VALUE PROPOSITION
+2.  COMPLETE TECHNOLOGY STACK SPECIFICATION
+3.  SYSTEM ARCHITECTURE & HIGH-LEVEL DATA FLOW
+4.  AUTHENTICATION & AUTHORIZATION DEEP DIVE (JWT, BCRYPT, GOOGLE OAUTH OIDC)
+5.  DATABASE DESIGN & RELATIONAL DATA MODELING (POSTGRESQL + ALEMBIC)
+6.  QUESTION MANAGEMENT ARCHITECTURE (IN-MEMORY POOL VS DATABASE VS REDIS)
+7.  REAL-TIME AUDIO PIPELINE (WEB SPEECH API: SPEECH SYNTHESIS & RECOGNITION)
+8.  GOOGLE GEMINI AI INTEGRATION & PROMPT ENGINEERING
+9.  AUTOMATED PROCTORING & COMPUTER VISION ENGINE (FACE-API.JS + ML)
+10. CODE EXECUTION SANDBOX ENGINE (MONACO EDITOR & SUBPROCESS RUNTIME)
+11. END-TO-END EXECUTION FLOW: START-TO-FINISH CHRONOLOGICAL LIFECYCLE
+12. EXHAUSTIVE FILE-BY-FILE & FOLDER-BY-FOLDER DIRECTORY SPECIFICATION
+13. COMPLETE REST API ENDPOINT REFERENCE
+14. DEPLOYMENT, DEVOPS & INFRASTRUCTURE PIPELINE
+15. MASTER INTERVIEW & VIVA PREPARATION: TOP 50 TECHNICAL QUESTIONS & ANSWERS
+--------------------------------------------------------------------------------
+
+
+================================================================================
+1. PROJECT OVERVIEW & CORE VALUE PROPOSITION
+================================================================================
+
+1.1 Executive Summary
+AISaraj is an enterprise-grade, automated technical interview and evaluation platform
+engineered to bridge the gap between engineering candidates and rigorous technical screening.
+Traditional hiring pipelines suffer from severe bottlenecks: senior engineers spend hundreds
+of unscalable hours conducting repetitive first-round technical screenings, candidates experience
+anxiety and subjective human biases, and companies bear astronomical financial costs per hire.
+AISaraj transforms this paradigm by deploying an autonomous, voice-interactive AI Interviewer
+that conducts real-time verbal technical rounds, administers live algorithmic coding challenges,
+enforces automated computer vision proctoring, and produces mathematically calibrated evaluation
+reports powered by Google's Gemini Large Language Model (LLM).
+
+1.2 Key Differentiators & Platform Capabilities
+- Dual Authentication Architecture: Seamless onboarding supporting both traditional salted bcrypt
+  email/password credentials and Google OAuth 2.0 OpenID Connect (OIDC) identity federation.
+- Real-Time Voice Synthesis & Transcription: High-fidelity verbal dialogue powered natively by
+  the browser's Web Speech API (SpeechSynthesis and SpeechRecognition), operating with zero external
+  voice latency and zero cloud audio bandwidth overhead.
+- Dual Operational Modes:
+    a) Recruiter-Scheduled Interviews: Human interviewers schedule customized sessions with tailored
+       difficulty levels, deadlines, and technical tracks; candidates receive dashboard alerts and
+       undergo structured multi-question examinations.
+    b) Candidate Self-Practice & LeetCode Sandbox: Candidates launch autonomous practice tracks
+       across Frontend, Backend, Fullstack, Core CS, and Data Structures & Algorithms (DSA),
+       receiving dynamic instant feedback and code compilation.
+- Subprocess Code Execution Engine: Multi-language isolated sandbox capable of compiling and
+  executing Python, JavaScript, C++, and Java code with strict memory, standard input (stdin), and
+  wall-clock timeout safety guards.
+- Client-Side Neural Computer Vision Proctoring: Integrated Face-API.js running a pre-trained
+  TinyFaceDetector convolutional neural network (CNN) within the client's browser, tracking facial
+  orientation, detecting absence, flagging multi-face intrusions, and monitoring tab-switching
+  violations with a 3-strike disqualification rule.
+- Comprehensive 5-Dimensional AI Evaluation: Gemini AI dynamically scores completed transcripts
+  across Communication, Technical Depth, Code Quality, Optimization, and Problem Solving on a 0-100
+  spectrum, delivering actionable strengths, weaknesses, study roadmaps, and hiring recommendations.
+
+
+================================================================================
+2. COMPLETE TECHNOLOGY STACK SPECIFICATION
+================================================================================
+
+2.1 Frontend Architecture (Client Tier)
+- Core Framework: React.js 18 (Single Page Application architecture with functional components and hooks).
+- Routing: React Router DOM v6 for declarative client-side route navigation, protected route guards,
+  and dynamic URL parameter resolution.
+- Global State Management: React Context API (AuthContext for user credentials and JWT lifecycle;
+  AISessionContext for live interview questions, timers, and transcripts; InterviewContext for
+  peer-to-peer WebRTC connections).
+- Code Editor: Monaco Editor (@monaco-editor/react), providing the industry-standard VS Code web
+  editor experience with syntax highlighting, language Intellisense, auto-indentation, and themes.
+- Machine Learning & Vision: Face-API.js (TensorFlow.js backend), executing the TinyFaceDetector
+  CNN model for real-time video frame processing directly in WebAssembly/WebGL.
+- Audio & Speech: Native HTML5 Web Speech API (window.speechSynthesis and window.webkitSpeechRecognition)
+  enabling local Text-to-Speech and Speech-to-Text conversion.
+- HTTP Networking: Axios with global request and response interceptors for automatic JWT injection
+  and silent 401 token refresh handling.
+- Real-Time Peer Video: WebRTC native APIs (RTCPeerConnection, MediaStream, navigator.mediaDevices)
+  for human-to-human interview rooms.
+
+2.2 Backend Architecture (Application & API Tier)
+- Web Framework: FastAPI (Python 3.12+), utilizing Starlette for lightning-fast ASGI asynchronous
+  request handling and high-throughput concurrency.
+- Data Validation & Serialization: Pydantic v2 and Pydantic-Settings, enforcing strict typing,
+  request body validation, environment variable parsing, and automatic OpenAPI / Swagger documentation.
+- Asynchronous Server: Uvicorn, an ultra-fast ASGI web server implementation built on uvloop and httptools.
+- Cryptography & Authentication:
+    * Passlib (with bcrypt engine) for password salting and hashing.
+    * Python-Jose for cryptographic signing, decoding, and validating JSON Web Tokens (JWT) using HS256.
+    * Google-Auth library (google.oauth2.id_token) for cryptographically verifying Google OAuth OIDC tokens.
+- Sandboxed Execution: Python asyncio subprocess engine executing isolated containerized binaries
+  with configurable timeouts.
+
+2.3 Database & ORM Tier
+- Relational Database: PostgreSQL 16 (Hosted on Neon Cloud Database / AWS RDS), providing ACID-compliant
+  transactional persistence, foreign-key relational integrity, and indexing.
+- Asynchronous Driver: asyncpg, the fastest asynchronous database client library for PostgreSQL in Python.
+- Object-Relational Mapper (ORM): SQLAlchemy 2.0 (AsyncIO extension), providing declarative model
+  definitions, lazy/selectin relationship loading, and asynchronous query construction.
+- Schema Migrations: Alembic, managing version-controlled database schema migrations, automated diff
+  generation, and zero-downtime database upgrades.
+
+2.4 AI & Machine Learning Tier
+- Foundation Model: Google Gemini 1.5 Flash (via google-generativeai SDK). Selected for high reasoning
+  accuracy, ultra-fast token generation latency, large context window (1M+ tokens), and economical
+  token pricing.
+- Client Vision Model: TinyFaceDetector (pre-trained MobileNet-based single-shot detector), quantized
+  for sub-50ms inference inside browser client environments.
+
+
+================================================================================
+3. SYSTEM ARCHITECTURE & HIGH-LEVEL DATA FLOW
+================================================================================
+
+3.1 Tiered Architectural Topology
+AISaraj implements a strict modern three-tier web topology reinforced by asynchronous micro-services:
+
++-------------------------------------------------------------------------------+
+|                             CLIENT TIER (BROWSER)                             |
+|  React 18 SPA | Monaco Code Editor | Web Speech API | Face-API.js (ML Vision) |
++-------------------------------------------------------------------------------+
+                                    |   ^
+                    HTTP / REST     |   | JSON Payloads
+                  (Bearer JWT Auth) |   | (Base64 Tokens)
+                                    v   |
++-------------------------------------------------------------------------------+
+|                       API GATEWAY & APPLICATION SERVER                        |
+|                                FastAPI (ASGI)                                 |
+|  +--------------------+  +--------------------+  +-------------------------+  |
+|  |  CORS Middleware   |  |  JWT Auth Guard    |  |  Pydantic Serializers   |  |
+|  +--------------------+  +--------------------+  +-------------------------+  |
+|  |  Auth Controller   |  |  Interview Engine  |  |  Code Execution Sandbox |  |
+|  +--------------------+  +--------------------+  +-------------------------+  |
++-------------------------------------------------------------------------------+
+            |                                           |
+            | SQLAlchemy AsyncIO                        | Asynchronous HTTPS
+            | (asyncpg connection pool)                 | (REST API via SDK)
+            v                                           v
++------------------------------------+      +-----------------------------------+
+|      PERSISTENCE STORAGE TIER      |      |          AI SERVICES TIER         |
+|         PostgreSQL Database        |      |       Google Gemini 1.5 Flash     |
+| (Users, Interviews, Q&A, Reports)  |      |   (Scoring, Feedback, Reasoning)  |
++------------------------------------+      +-----------------------------------+
+
+3.2 Data Flow Ingestion Cycles
+- Interactive Interview Cycle:
+  1. Frontend dispatches start signal -> FastAPI loads in-memory bank -> Freezes test paper in PostgreSQL.
+  2. Frontend queries next question -> FastAPI reads indexed record -> Returns JSON payload.
+  3. Frontend renders text -> Web Speech API synthesizes local audio voice -> Candidate listens.
+  4. Candidate responds via microphone -> Web Speech API transcribes live audio -> Candidate reviews.
+  5. Candidate clicks submit -> FastAPI writes answer to PostgreSQL -> Immediately fetches next prompt.
+  6. Final question answered -> FastAPI bundles full transcript -> Calls Google Gemini in a single shot.
+  7. Gemini evaluates transcript -> FastAPI parses structured JSON -> Stores Report Card in PostgreSQL.
+
+
+================================================================================
+4. AUTHENTICATION & AUTHORIZATION DEEP DIVE
+================================================================================
+
+4.1 Manual Credential Architecture (Email + Password)
+1. Password Hashing with Bcrypt:
+   - Plaintext passwords are NEVER stored in the database.
+   - When a candidate registers, Passlib passes the plaintext password through the Blowfish-based
+     bcrypt algorithm using a work factor (cost) of 12 rounds with a cryptographically randomized 128-bit
+     unique salt.
+   - The resulting hash (formatted as: $2b$12$[22_char_salt][31_char_hash]) is written to PostgreSQL.
+   - During login, the server re-hashes the incoming password against the extracted salt; if the output
+     hash matches, authentication succeeds in O(1) mathematical verification time.
+
+2. JSON Web Token (JWT) Anatomy & Cryptographic Signing:
+   - Upon successful verification, FastAPI mints an Access Token consisting of three Base64URL-encoded
+     segments separated by dots: Header.Payload.Signature.
+   - Segment 1 (Header): {"alg": "HS256", "typ": "JWT"}. Specifies HMAC using SHA-256 hash algorithm.
+   - Segment 2 (Payload / Claims):
+     {
+       "sub": "42",                  // Subject (User ID in Database)
+       "email": "candidate@saraj.ai",// Verified user email
+       "role": "student",            // Role-based access control level
+       "exp": 1759500000             // Expiration timestamp (epoch seconds)
+     }
+   - Segment 3 (Cryptographic Signature):
+     HMACSHA256(Base64URL(Header) + "." + Base64URL(Payload), SECRET_KEY)
+   - The SECRET_KEY is a 256-bit cryptographically secure string generated via Python `secrets.token_hex(32)`.
+     Because only the server possesses the SECRET_KEY, any client-side tampering with claims immediately
+     invalidates the signature, causing the server to reject the token with HTTP 401 Unauthorized.
+
+4.2 Google OAuth 2.0 & OpenID Connect (OIDC) Integration
+1. The Problem Solved: Eliminates password friction and offloads credential security to Google.
+2. The Complete Flow:
+   - User clicks "Sign in with Google" on React frontend.
+   - The Google Identity Services SDK displays Google's secure popup dialog.
+   - Candidate authenticates with Google servers; your app never touches the user's Google password.
+   - Google signs and issues a Google ID Token (an OIDC JWT signed with Google's private RSA keys).
+   - React sends this Google ID Token to FastAPI via `POST /api/v1/auth/google`.
+   - FastAPI uses Google's public cryptographic keys (`google.oauth2.id_token.verify_oauth2_token`)
+     to verify that:
+       a) The signature matches Google's public key certificate.
+       b) The audience (`aud`) strictly matches `settings.GOOGLE_CLIENT_ID`.
+       c) The token has not expired.
+   - FastAPI extracts verified claims (`email`, `given_name`, `picture`).
+   - Just-in-Time (JIT) Provisioning: FastAPI checks PostgreSQL. If the email exists, it logs the user in;
+     if not, it creates a new User record with a randomized, unguessable password hash.
+   - FastAPI discards the Google ID Token and issues its OWN Application Access Token signed with its
+     `SECRET_KEY`, unifying all subsequent API access under the same token format.
+
+4.3 Access Token vs. Refresh Token Lifecycle & Silent Refresh
+- Access Token: Short-lived (15 to 60 minutes). Transmitted in the HTTP Header:
+  `Authorization: Bearer <token>` on every protected API call.
+- Refresh Token: Long-lived (7 to 30 days). Stored securely in an `HttpOnly`, `SameSite=Strict`, `Secure`
+  cookie inaccessible to malicious JavaScript scripts (immune to Cross-Site Scripting / XSS).
+- Silent Refresh Pipeline:
+  When an access token expires mid-session, an API request returns HTTP 401. The frontend Axios
+  response interceptor catches this error before the user notices, quietly posts the Refresh Token
+  to `POST /api/v1/auth/refresh`, receives a new 15-minute Access Token, and re-executes the failed
+  request transparently.
+
+
+================================================================================
+5. DATABASE DESIGN & RELATIONAL DATA MODELING (POSTGRESQL + ALEMBIC)
+================================================================================
+
+5.1 Complete Entity-Relationship Overview
+The database enforces strict third normal form (3NF) relational integrity across nine tables:
+
+[ users ] (1)
+    |
+    |----< (N) [ ai_scheduled_interviews ] (1)
+    |                |
+    |                |----< (N) [ ai_interview_questions ] (1)
+    |                |                |
+    |                |                |----< (1) [ ai_interview_answers ]
+    |                |
+    |                |----< (1) [ ai_interview_reports ]
+    |
+    |----< (N) [ practice_sessions ] (1)
+                     |
+                     |----< (N) [ ai_questions ] (1)
+                     |                |
+                     |                |----< (1) [ ai_answers ]
+                     |
+                     |----< (1) [ practice_evaluations ]
+
+5.2 Detailed Table Specifications
+
+1. Table: `users`
+   - Primary Key: `id` (SERIAL / Integer)
+   - Columns:
+     * `email`: VARCHAR(255), UNIQUE, NOT NULL, INDEXED.
+     * `hashed_password`: VARCHAR(255), NOT NULL. Holds bcrypt hash string.
+     * `first_name`: VARCHAR(100), NULLABLE.
+     * `last_name`: VARCHAR(100), NULLABLE.
+     * `role`: VARCHAR(50), DEFAULT 'student'. (Values: 'student', 'interviewer', 'admin').
+     * `is_active`: BOOLEAN, DEFAULT TRUE.
+     * `created_at`: TIMESTAMP WITH TIME ZONE, DEFAULT CURRENT_TIMESTAMP.
+     * `updated_at`: TIMESTAMP WITH TIME ZONE, DEFAULT CURRENT_TIMESTAMP.
+
+2. Table: `ai_scheduled_interviews`
+   - Primary Key: `id` (SERIAL / Integer)
+   - Foreign Keys:
+     * `interviewer_id` -> users(id) ON DELETE CASCADE.
+     * `student_id` -> users(id) ON DELETE CASCADE.
+   - Columns:
+     * `topic`: VARCHAR(255), NOT NULL. (e.g., 'Fullstack Web Development').
+     * `difficulty`: VARCHAR(50), DEFAULT 'medium'. (Values: 'easy', 'medium', 'hard').
+     * `status`: VARCHAR(50), DEFAULT 'scheduled'. (Values: 'scheduled', 'in_progress', 'completed').
+     * `scheduled_at`: TIMESTAMP WITHOUT TIME ZONE, NOT NULL.
+     * `deadline`: TIMESTAMP WITHOUT TIME ZONE, NULLABLE.
+     * `company_name`: VARCHAR(100), DEFAULT ''.
+     * `selected_tracks`: JSONB, DEFAULT '[]'. Array of track strings (e.g., ['react', 'node']).
+     * `selected_subcategories`: JSONB, DEFAULT '{}'. Nested object mapping tracks to sub-topics.
+
+3. Table: `ai_interview_questions`
+   - Primary Key: `id` (SERIAL / Integer)
+   - Foreign Key: `interview_id` -> ai_scheduled_interviews(id) ON DELETE CASCADE.
+   - Columns:
+     * `question_text`: TEXT, NOT NULL.
+     * `difficulty_level`: VARCHAR(50), NOT NULL.
+     * `question_type`: VARCHAR(50), DEFAULT 'verbal'. (Values: 'verbal', 'coding').
+     * `order`: INTEGER, NOT NULL. Sequentially indexes questions (0, 1, 2...).
+
+4. Table: `ai_interview_answers`
+   - Primary Key: `id` (SERIAL / Integer)
+   - Foreign Key: `question_id` -> ai_interview_questions(id) ON DELETE CASCADE.
+   - Columns:
+     * `text_answer`: TEXT, NULLABLE. Spoken speech transcript converted by Web Speech API.
+     * `code_answer`: TEXT, NULLABLE. Source code submitted via Monaco editor.
+     * `language`: VARCHAR(50), NULLABLE. (e.g., 'python', 'javascript', 'cpp').
+     * `execution_result`: JSONB, NULLABLE. Output from sandbox executor (stdout, stderr, exit code).
+     * `created_at`: TIMESTAMP WITH TIME ZONE, DEFAULT CURRENT_TIMESTAMP.
+
+5. Table: `ai_interview_reports`
+   - Primary Key: `id` (SERIAL / Integer)
+   - Foreign Key: `interview_id` -> ai_scheduled_interviews(id) ON DELETE CASCADE.
+   - Columns:
+     * `total_score`: INTEGER, NOT NULL. (0-100 overall score).
+     * `communication`: INTEGER, NOT NULL. (0-20 score).
+     * `technical_depth`: INTEGER, NOT NULL. (0-25 score).
+     * `code_quality`: INTEGER, NOT NULL. (0-20 score).
+     * `optimization`: INTEGER, NOT NULL. (0-15 score).
+     * `problem_solving`: INTEGER, NOT NULL. (0-20 score).
+     * `warning_count`: INTEGER, DEFAULT 0. Number of proctoring violations incurred.
+     * `hiring_signal`: VARCHAR(50), NOT NULL. ('Strong Hire', 'Hire', 'Consider', 'No Hire').
+     * `raw_ai_response`: JSONB, NOT NULL. Complete unmodified Gemini JSON evaluation payload.
+
+6. Tables: `practice_sessions`, `ai_questions`, `ai_answers`, `practice_evaluations`
+   - Mirror the scheduled interview hierarchy with support for real-time clarification dialogues,
+     immediate automated evaluation, and autonomous candidate track practice.
+
+
+================================================================================
+6. QUESTION MANAGEMENT ARCHITECTURE: RAM VS. DATABASE VS. REDIS
+================================================================================
+
+6.1 Current Architecture: Hybrid In-Memory Pool with Session Freezing
+AISaraj utilizes an optimized two-stage question management model:
+- Stage 1 (The Question Library): Stored in server memory via `verbal_question_bank.py` containing
+  50+ industry-verified questions per technical discipline.
+- Stage 2 (The Frozen Candidate Paper): The moment an interview starts, 8 questions are selected,
+  shuffled, and written to PostgreSQL table `ai_interview_questions`.
+
+6.2 Engineering Trade-Off Analysis: Why This is Faster
+
++-------------------------------+----------------------------+-----------------------------+
+| Architectural Metric          | AISaraj Current Hybrid     | Pure Database (No Redis)    |
++-------------------------------+----------------------------+-----------------------------+
+| Location of Master Library    | Application RAM (Memory)   | Cloud PostgreSQL Disk       |
+| Retrieval Latency (Selection) | 0.0001 ms (CPU RAM access) | 70-120 ms (Network SQL RTT) |
+| SQL Randomization Overhead    | Python random.shuffle (0ms)| SQL ORDER BY RANDOM() (slow)|
+| Total Network Trips to Start  | Exactly 1 trip (INSERT)    | Exactly 2 trips (SEL + INS) |
+| Response Latency to Candidate | ~30 milliseconds total     | ~160-220 milliseconds total |
++-------------------------------+----------------------------+-----------------------------+
+
+6.3 The Role of Redis in Scaling
+- Why Redis is Not Mandatory Today: PostgreSQL easily handles thousands of reads per second with
+  standard indexing. For current traffic levels, running an extra Redis cache adds unnecessary
+  infrastructure costs and maintenance complexity.
+- How Redis is Used in Enterprise V2:
+  In an enterprise setup where non-engineers need to edit questions via an Admin CMS, the master questions
+  are moved from Python code to a database table `question_bank`. To prevent 10,000 concurrent students
+  from overwhelming the database on Monday morning, active question pools are cached in Redis RAM.
+  This delivers the sub-millisecond retrieval speed of AISaraj's current code setup while allowing
+  zero-downtime question edits in the database.
+
+
+================================================================================
+7. REAL-TIME AUDIO PIPELINE: WEB SPEECH API DEEP DIVE
+================================================================================
+
+7.1 Architecture of the Client-Side Voice Engine
+Voice interaction is powered natively by the HTML5 Web Speech Specification, split into two modules:
+1. SpeechSynthesis (Text-to-Speech / TTS):
+   - Browser global controller: `window.speechSynthesis`.
+   - Constructs a `SpeechSynthesisUtterance` object containing the question text.
+   - Configures vocal properties: pitch (1.0), rate (1.0), volume (1.0), and preferred voice accent
+     (en-US natural).
+   - Audio rendering occurs on the client's local operating system audio subsystem.
+
+2. SpeechRecognition (Speech-to-Text / STT):
+   - Browser constructor: `window.SpeechRecognition || window.webkitSpeechRecognition`.
+   - Captures microphone audio stream via WebAudio driver.
+   - Operates in `continuous = true` and `interimResults = true` mode, outputting real-time partial
+     text transcripts into React state as the candidate speaks.
+
+7.2 Why Browser-Native Web Speech Beats Server-Side Cloud Audio
+- Latency Elimination: Server-side voice models (such as ElevenLabs or AWS Polly) require sending text
+  over the internet, waiting for remote neural audio synthesis, downloading heavy binary audio streams
+  (MP3/WAV), and buffering before playback (introducing 800ms - 2000ms delay). Web Speech API speaks in 0ms.
+- Bandwidth & Server Cost: Server audio streaming at 10,000 users requires gigabytes of bandwidth and
+  costs thousands of dollars in cloud API bills. Web Speech API runs 100% free on client hardware.
+
+
+================================================================================
+8. GOOGLE GEMINI AI INTEGRATION & PROMPT ENGINEERING
+================================================================================
+
+8.1 SDK Initialization & Configuration
+- Service Wrapper: `backend/services/gemini_client.py`.
+- Initialization: Google's official `google-generativeai` SDK connects using `settings.GEMINI_API_KEY`.
+- Model Selected: `gemini-1.5-flash`.
+- JSON Response Enforcement:
+  FastAPI passes `generation_config={"response_mime_type": "application/json"}` to guarantee valid,
+  parsable JSON without markdown backticks or commentary text.
+
+8.2 The Master Evaluation Prompt (practice_service.py)
+When an interview finishes, FastAPI executes the evaluation prompt:
+```
+You are AISaraj, an expert, rigorous and strict technical interviewer evaluating a software
+engineering candidate.
+Tracks: {session.selected_tracks}, Difficulty: {session.difficulty}, Warnings: {warning_count}.
+Code Explanation (if any): {code_explanation}
+
+--- CANDIDATE INTERVIEW TRANSCRIPT ---
+{transcript_str}
+--- END TRANSCRIPT ---
+
+CRITICAL DYNAMIC SCORING DIRECTIVES:
+- Evaluate dynamically across the full 0-100 spectrum based on the candidate's actual answers:
+  * 85 - 100: Exceptional / Senior-level answers with deep architectural context and trade-offs.
+  * 70 - 84:  Solid, accurate, and structured answers covering key concepts and edge cases.
+  * 50 - 69:  Average / Competent understanding; covers basic concepts but lacks depth.
+  * 25 - 49:  Weak, superficial, or incomplete answers; misses core technical terminology.
+  * 1 - 24:   Very poor or minimal attempt; largely off-topic or one-sentence guesses.
+  * 0:        Silence, empty answers, or no attempt made.
+- Dimensions:
+  * communication: 0-20
+  * technical_depth: 0-25
+  * code_quality: 0-20
+  * optimization: 0-15
+  * problem_solving: 0-20
+- score: overall score 0-100 reflecting actual answers across the full scale.
+- topic_relevance: 0-10 rating on how directly candidate answered.
+- strengths: list of 2-3 specific real strengths from the candidate's answers.
+- weaknesses: list of 2-4 specific technical weaknesses identified directly from the transcript.
+- improvement_plan: list of 2-4 concrete technical study topics.
+- hiring_signal: 'No Hire' (<60), 'Consider' (60-74), 'Hire' (75-89), 'Strong Hire' (90+).
+Output strictly valid JSON with these fields.
+```
+
+8.3 The Real-Time Clarification Engine
+When a candidate says phrases like 'repeat', 'pardon', 'say again', or 'explain the question',
+FastAPI triggers a conversational clarification prompt:
+```
+You are AISaraj, an interviewer. The candidate asked for clarification or repetition on:
+Question: {question.question_text}
+Candidate Request: {cleaned_candidate_speech}
+
+Politely repeat the question clearly or give a brief 1-sentence clarification.
+Output JSON with keys: 'response' (string), 'candidate_asked_question' (true).
+```
+
+
+================================================================================
+9. AUTOMATED PROCTORING & COMPUTER VISION ENGINE (FACE-API.JS + ML)
+================================================================================
+
+9.1 Technology Stack & Machine Learning Model
+- Vision Framework: Face-API.js v0.22.2 (TensorFlow.js WebAssembly / WebGL backend).
+- Neural Network Architecture: TinyFaceDetector, an ultra-lightweight, quantized single-shot
+  convolutional neural network (MobileNet-style depthwise separable convolutions).
+- Weight Storage: `frontend/public/models/tiny_face_detector_model-*` loaded locally in the browser
+  via `faceapi.nets.tinyFaceDetector.loadFromUri('/models')`.
+
+9.2 Detection Pipeline & Violation Logic
+Proctoring runs continuously across two parallel event loops in `AIPracticePage.jsx`:
+1. Facial Presence & Head Pose Tracking:
+   - Interval runs `faceapi.detectSingleFace(videoElement, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.28 }))`.
+   - Bounding Box Verification: Computes face center `(x + width/2) / videoWidth` and `(y + height/2) / videoHeight`.
+   - Absence & Looking-Away Timer: If no face is detected or face orientation wanders outside boundaries
+     for more than 4 consecutive seconds, a proctoring violation triggers.
+
+2. Browser Tab-Switching & Visibility Monitoring:
+   - Listens to Page Visibility API (`document.hidden`) and window blur events (`window.onblur`).
+   - If the candidate switches tabs, minimizes the window, or attempts to open ChatGPT / Google,
+     an instant strike is registered.
+
+9.3 Strike System & Disqualification Mathematics
+- Three-Strike Disqualification Rule:
+  * Warning 1: Audio/visual modal alert displayed on screen.
+  * Warning 2: High-priority warning alert; interview timer continues.
+  * Warning 3: Automatic instant interview termination (`disqualified = true`).
+- Proctoring Score Formula:
+  `proctoring_score = max(0, 10 - (warning_count * 3))`
+  * 0 Warnings: 10 / 10 (Full integrity)
+  * 1 Warning:   7 / 10
+  * 2 Warnings:  4 / 10
+  * 3 Warnings:  0 / 10 (Immediate disqualification sent to Gemini evaluation report).
+
+
+================================================================================
+10. CODE EXECUTION SANDBOX ENGINE
+================================================================================
+
+10.1 Architecture
+The code execution engine (`backend/services/code_executor.py`) provides safe, sandboxed execution
+for candidate algorithmic programming challenges.
+- Supported Languages: Python 3, JavaScript (Node.js), C++ (g++), Java (OpenJDK).
+- Frontend Interface: Monaco Code Editor (`@monaco-editor/react`) embedded in the interview room.
+
+10.2 Sandboxed Execution Mechanics
+1. Code Submission: Frontend posts `{ language: "python", source_code: "def twoSum...", stdin: "[2,7,11,15]
+9" }`
+   to `POST /api/v1/code/execute`.
+2. Temporary File Isolation: The backend generates an isolated scratch file with a UUID.
+3. Subprocess Spawning: Spawns an isolated asynchronous OS subprocess using `asyncio.create_subprocess_exec()`.
+4. Resource Limits:
+   - Wall-Clock Timeout: 5.0 seconds maximum execution time. If code enters an infinite loop
+     (`while True: pass`), the process is forcefully killed via `proc.kill()` and returns:
+     `{"stderr": "Execution timed out (5s limit)", "exit_code": 124}`.
+   - Memory & Output Capping: Stdout and Stderr are truncated at 10,000 characters to prevent buffer
+     overflow attacks.
+
+
+================================================================================
+11. END-TO-END EXECUTION FLOW: START-TO-FINISH LIFECYCLE
+================================================================================
+
+Step 1: Recruiter Scheduling / Candidate Selection
+- Recruiter logs in -> visits `/schedule` -> submits track, difficulty, deadline, and candidate ID.
+- FastAPI writes new row to `ai_scheduled_interviews` with status `scheduled`.
+
+Step 2: Candidate Dashboard Notification
+- Candidate logs in -> Dashboard calls `GET /api/v1/ai_interviews/student` -> displays upcoming interview card.
+
+Step 3: Launching Interview Room & Session Freezing
+- Candidate clicks "Start Interview" -> `POST /api/v1/ai_interviews/{id}/start`.
+- FastAPI updates status to `in_progress`, selects 8 questions from `verbal_question_bank.py`,
+  and commits them as permanent records in `ai_interview_questions`.
+
+Step 4: Real-Time Audio Delivery
+- React calls `POST /api/v1/ai_interviews/{id}/questions/next` -> receives Question 0 JSON.
+- React feeds string into `window.speechSynthesis.speak()` -> computer speakers ask question out loud.
+
+Step 5: Candidate Voice Capture & Live Transcription
+- Candidate speaks -> `window.webkitSpeechRecognition` captures microphone input -> transcribes speech
+  into text inside the answer textarea in real time.
+
+Step 6: Real-Time Clarification (Optional)
+- Candidate says "Could you repeat that?" -> Backend regex matches `repeat_triggers` -> Gemini generates
+  1-sentence clarification -> Web Speech API speaks it aloud.
+
+Step 7: Answer Submission & Next Prompt
+- Candidate clicks "Submit Answer" -> `POST /api/v1/ai_interviews/{id}/submit`.
+- FastAPI saves answer to `ai_interview_answers` -> fetches Question 1 -> Web Speech speaks Question 1.
+- Loop repeats until all 8 questions are answered.
+
+Step 8: Interview Completion & AI Evaluation
+- Candidate submits last question -> `POST /api/v1/ai_interviews/{id}/complete`.
+- FastAPI retrieves complete transcript from PostgreSQL -> formats Master Prompt -> calls Google Gemini.
+- Gemini evaluates the transcript across 5 dimensions on a 0-100 scale -> returns structured JSON.
+- FastAPI writes record to `ai_interview_reports` -> marks interview `completed`.
+
+Step 9: Final Scorecard Presentation
+- React receives report JSON -> renders Report Card dashboard with animated score dials, strengths,
+  weaknesses, study roadmap, and Hiring Signal badge.
+
+
+================================================================================
+12. EXHAUSTIVE FILE-BY-FILE & FOLDER-BY-FOLDER DIRECTORY SPECIFICATION
+================================================================================
+
+12.1 Backend Directory Breakdown (`backend/`)
+--------------------------------------------------------------------------------
+File: backend/.env
+- Role: Private environment file containing DATABASE_URL, SECRET_KEY, GEMINI_API_KEY, and Google OAuth credentials.
+
+File: backend/.env.example
+- Role: Public template defining required environment variable keys for onboarding developers.
+
+File: backend/requirements.txt
+- Role: Defines all Python dependencies (FastAPI, SQLAlchemy, asyncpg, google-generativeai, passlib, etc.).
+
+File: backend/Dockerfile
+- Role: Multi-stage Docker container build instructions for backend deployment.
+
+File: backend/docker-compose.yml
+- Role: Orchestrates local development containers (FastAPI server + PostgreSQL container).
+
+File: backend/alembic.ini
+- Role: Configuration file for Alembic database migration runner.
+
+File: backend/alembic/env.py
+- Role: Connects Alembic to database URL, loads SQLAlchemy models, and runs migration transactions.
+
+File: backend/main.py
+- Role: Central ASGI application entry point. Initializes FastAPI, sets CORS middleware, mounts routers, and runs health checks.
+
+File: backend/core/config.py
+- Role: Pydantic BaseSettings class loading environment variables into a singleton `settings` object.
+
+File: backend/core/database.py
+- Role: Asynchronous database setup: `create_async_engine`, `async_sessionmaker`, and `get_db()` dependency.
+
+File: backend/core/security.py
+- Role: Cryptographic security: bcrypt password hashing (`get_password_hash`, `verify_password`) and JWT signing (`create_access_token`).
+
+File: backend/models/user.py
+- Role: SQLAlchemy User model (id, email, hashed_password, role, is_active, created_at).
+
+File: backend/models/ai_interview.py
+- Role: SQLAlchemy models for scheduled interviews: AIScheduledInterview, AIInterviewQuestion, AIInterviewAnswer, AIInterviewReport.
+
+File: backend/models/practice.py
+- Role: SQLAlchemy models for self-practice: PracticeSession, AIQuestion, AIAnswer, PracticeEvaluation.
+
+File: backend/schemas/user.py
+- Role: Pydantic schemas: UserCreate, UserLogin, UserResponse, GoogleLoginRequest, Token.
+
+File: backend/schemas/ai_interview.py
+- Role: Pydantic schemas for interview scheduling, question responses, answer payloads, and report output.
+
+File: backend/schemas/code.py
+- Role: Pydantic schemas for code execution requests (language, source_code, stdin) and responses.
+
+File: backend/services/gemini_client.py
+- Role: Google Generative AI SDK client wrapper; initializes gemini-1.5-flash and enforces JSON output.
+
+File: backend/services/ai_interview_service.py
+- Role: Core business logic for scheduled interviews (start, question advancing, answer saving, report generation).
+
+File: backend/services/practice_service.py
+- Role: Business logic for autonomous candidate practice tracks, live clarification checks, and practice reports.
+
+File: backend/services/verbal_question_bank.py
+- Role: In-memory dictionary containing 500+ curated technical questions across HTML, CSS, React, Node, Python, etc.
+
+File: backend/services/dsa_prompts.py
+- Role: Curated library of algorithmic coding problems (Two Sum, Stock Buy/Sell, Invert Binary Tree, etc.).
+
+File: backend/services/code_executor.py
+- Role: Sandboxed subprocess code runner for Python, JavaScript, C++, and Java with 5-second timeouts.
+
+File: backend/api/deps.py
+- Role: FastApi route dependencies: `get_current_user` JWT validation guard.
+
+File: backend/api/api_v1/api.py
+- Role: Central API router merging auth, code, ai_interviews, practice, and interview sub-routers.
+
+File: backend/api/api_v1/endpoints/auth.py
+- Role: Auth routes: `/register`, `/login`, `/google`, and `/me`.
+
+File: backend/api/api_v1/endpoints/ai_interviews.py
+- Role: Interview routes: `/schedule`, `/start`, `/questions/next`, `/submit`, `/complete`, and `/report`.
+
+File: backend/api/api_v1/endpoints/code.py
+- Role: Code execution route: `/code/execute`.
+
+File: backend/api/api_v1/endpoints/practice.py
+- Role: Self-practice routes: track initialization, real-time clarification, and practice evaluation.
+
+
+12.2 Frontend Directory Breakdown (`frontend/`)
+--------------------------------------------------------------------------------
+File: frontend/public/index.html
+- Role: Single HTML entry point containing `<div id="root"></div>` where React mounts.
+
+File: frontend/public/models/tiny_face_detector_model-*
+- Role: Quantized pre-trained neural network weights for Face-API.js client-side proctoring.
+
+File: frontend/src/index.js
+- Role: JavaScript root; mounts React 18 createRoot onto DOM.
+
+File: frontend/src/index.css
+- Role: Global typography, color tokens, dark mode palette, and CSS utilities.
+
+File: frontend/src/App.js
+- Role: Root application component nesting context providers (AuthContext, AISessionContext) and router.
+
+File: frontend/src/routes/AppRouter.jsx
+- Role: React Router configuration mapping URLs to page components with protected auth guards.
+
+File: frontend/src/context/AuthContext.jsx
+- Role: Global authentication provider: holds user token, profile, login/logout, and Google sign-in methods.
+
+File: frontend/src/context/AISessionContext.jsx
+- Role: Live interview state: tracks current question, timer, answers, and proctoring status.
+
+File: frontend/src/api/client.js
+- Role: Axios HTTP client with request interceptor automatically attaching Bearer JWT to headers.
+
+File: frontend/src/api/auth.js
+- Role: Network API calls for authentication endpoints.
+
+File: frontend/src/api/aiInterview.js
+- Role: Network API calls for scheduled interview lifecycle endpoints.
+
+File: frontend/src/api/codeExecution.js
+- Role: Network API call dispatching code to backend sandbox.
+
+File: frontend/src/hooks/useSpeech.js
+- Role: Custom hook wrapping Web Speech API: `speak()` for TTS and `startListening()` for STT.
+
+File: frontend/src/hooks/useCodeExecution.js
+- Role: Custom hook managing Monaco editor code compilation state and terminal outputs.
+
+File: frontend/src/components/CodeEditor/CodeEditor.jsx
+- Role: Monaco editor component featuring language selector, theme toggle, and run button.
+
+File: frontend/src/components/common/GoogleSignInButton.jsx
+- Role: Renders Google Identity Services login button.
+
+File: frontend/src/pages/auth/LoginPage.jsx
+- Role: Candidate login view with email/password inputs and Google sign-in option.
+
+File: frontend/src/pages/auth/RegisterPage.jsx
+- Role: New user registration form.
+
+File: frontend/src/pages/dashboard/DashboardPage.jsx
+- Role: Home dashboard displaying scheduled interviews, performance analytics, and practice tracks.
+
+File: frontend/src/pages/ai-interview/AIInterviewPage.jsx
+- Role: Live scheduled interview room: renders AI avatar, speaks questions, records voice, runs Monaco editor.
+
+File: frontend/src/pages/ai-interview/AIReportPage.jsx
+- Role: Displays final Gemini evaluation report with score metrics, strengths, weaknesses, and hiring badge.
+
+File: frontend/src/pages/ai-practice/AIPracticePage.jsx
+- Role: Self-practice room equipped with live Face-API.js proctoring, verbal tracks, and LeetCode problems.
+
+
+================================================================================
+13. COMPLETE REST API ENDPOINT REFERENCE
+================================================================================
+
+1. Authentication Endpoints (`/api/v1/auth`)
+- POST /api/v1/auth/register
+  * Payload: { "email": "user@saraj.ai", "password": "...", "first_name": "...", "last_name": "..." }
+  * Response: 201 Created -> User schema.
+- POST /api/v1/auth/login
+  * Payload: OAuth2PasswordRequestForm (username, password).
+  * Response: 200 OK -> { "access_token": "...", "token_type": "bearer" }.
+- POST /api/v1/auth/google
+  * Payload: { "token": "GOOGLE_ID_TOKEN" }
+  * Response: 200 OK -> { "access_token": "...", "token_type": "bearer" }.
+- GET /api/v1/auth/me
+  * Headers: Authorization: Bearer <token>
+  * Response: 200 OK -> Current user profile.
+
+2. Scheduled Interview Endpoints (`/api/v1/ai_interviews`)
+- POST /api/v1/ai_interviews/schedule
+  * Payload: { "student_id": 5, "topic": "Fullstack", "difficulty": "medium", "scheduled_at": "...", "selected_tracks": ["react", "node"] }
+  * Response: 201 Created -> Interview metadata.
+- POST /api/v1/ai_interviews/{id}/start
+  * Response: 200 OK -> Status changed to 'in_progress', questions frozen in DB.
+- POST /api/v1/ai_interviews/{id}/questions/next
+  * Response: 200 OK -> { "id": 101, "question_text": "...", "difficulty_level": "medium", "order": 0 }.
+- POST /api/v1/ai_interviews/{id}/submit
+  * Payload: { "question_id": 101, "text_answer": "...", "code_answer": "...", "language": "python" }
+  * Response: 200 OK -> Answer saved.
+- POST /api/v1/ai_interviews/{id}/complete
+  * Response: 200 OK -> Gemini evaluation report JSON.
+
+3. Code Execution Sandbox Endpoint (`/api/v1/code`)
+- POST /api/v1/code/execute
+  * Payload: { "language": "python", "source_code": "print(2+2)", "stdin": "" }
+  * Response: 200 OK -> { "stdout": "4
+", "stderr": "", "exit_code": 0 }.
+
+
+================================================================================
+14. DEPLOYMENT, DEVOPS & INFRASTRUCTURE PIPELINE
+================================================================================
+
+14.1 Production Hosting Architecture
+- Frontend: Deployed on Vercel Edge Network with automatic CI/CD builds on git push.
+  * Static file caching on Global CDN edges.
+  * Rewrite rules in `vercel.json` routing all routes to `index.html` for client-side routing.
+- Backend: Deployed in Docker containers on Render / AWS EC2 / DigitalOcean.
+  * Gunicorn managing Uvicorn worker processes (`uvicorn.workers.UvicornWorker`).
+  * Asynchronous non-blocking event loops handling thousands of concurrent connections.
+- Database: Managed PostgreSQL 16 on Neon Cloud / AWS RDS with connection pooling, automated backups,
+  and SSL enforcement (`sslmode=require`).
+
+14.2 Environment Variables & Production Hardening
+- HTTPS & TLS 1.3: All data in transit encrypted.
+- CORS Configuration: Whitelists specific production frontend domains; blocks arbitrary external origins.
+- Sensitive Secret Management: Secrets stored in managed cloud environment variables, never in source code.
+
+
+================================================================================
+15. MASTER INTERVIEW & VIVA PREPARATION: TOP 50 TECHNICAL Q&A
+================================================================================
+
+Q01: What is the core problem AISaraj solves?
+A01: It eliminates the expensive, unscalable, and biased technical screening bottleneck by providing
+     an autonomous AI interviewer that conducts voice rounds, coding evaluations, and automated proctoring.
+
+Q02: Why did you choose FastAPI over Django or Flask?
+A02: FastAPI is built on Starlette and Pydantic, offering native asynchronous async/await support,
+     blazing-fast performance comparable to Go/Node.js, automatic OpenAPI documentation, and strict
+     data serialization.
+
+Q03: How does passlib with bcrypt ensure password security?
+A03: It applies the Blowfish-based bcrypt algorithm with an automatic random 128-bit salt and 12 work
+     rounds, making brute-force dictionary and rainbow-table attacks computationally impossible.
+
+Q04: What is the structure of a JSON Web Token (JWT)?
+A04: It consists of three Base64URL-encoded parts: Header (algorithm & type), Payload (claims like
+     sub, email, exp), and Signature (cryptographic hash created with the server's SECRET_KEY).
+
+Q05: Can a JWT be decrypted by anyone?
+A05: Yes, Base64URL decoding is trivial. JWTs are signed for integrity, not encrypted for secrecy.
+     Sensitive data (like passwords) must never be placed inside the payload.
+
+Q06: How do you verify Google OAuth tokens on the backend?
+A06: We pass the Google ID Token to `google.oauth2.id_token.verify_oauth2_token()`, which validates
+     Google's cryptographic signature using Google's public certs and verifies that the audience (aud)
+     matches our GOOGLE_CLIENT_ID.
+
+Q07: What is the difference between Google ID Token and App Access Token?
+A07: Google ID Token is an identity assertion issued by Google proving who the user is. Your App Access
+     Token is an authorization token issued by your backend to allow access to your own protected APIs.
+
+Q08: Why use both Access Tokens and Refresh Tokens?
+A08: To balance security and UX. Access tokens are short-lived (15m) so stolen tokens expire quickly;
+     Refresh tokens are long-lived (7d) and kept in secure HttpOnly cookies to silently renew access.
+
+Q09: What is Silent Refresh?
+A09: When an access token expires, an Axios interceptor catches the 401 response, calls `/auth/refresh`
+     with the refresh token, gets a new access token, and retries the original request without user interruption.
+
+Q10: Why did you choose PostgreSQL over MongoDB?
+A10: Technical interviews require strict relational integrity (users -> interviews -> questions -> answers -> reports),
+     ACID transactional guarantees, and foreign-key cascade protections best served by a relational database.
+
+Q11: What is the role of Alembic in this project?
+A11: Alembic manages version-controlled database schema migrations, auto-generating migration scripts
+     from SQLAlchemy model changes and applying them without data loss.
+
+Q12: Why are interview questions stored in Python code initially instead of purely in PostgreSQL?
+A12: Pulling from an in-memory Python dictionary takes 0.0001ms (RAM speed) with zero network latency,
+     requiring only 1 single database trip to save the session questions. Querying PostgreSQL directly
+     would require 2 separate network trips (~150ms+).
+
+Q13: Why are questions copied to PostgreSQL when an interview starts?
+A13: To freeze the exam paper against browser refreshes, preserve sequential order, provide stateless
+     backend continuity, and generate Primary Key IDs for foreign-key answer linking.
+
+Q14: What is the purpose of Redis in this architecture?
+A14: Redis is an optional in-memory cache. In a system where master questions live in a database table,
+     Redis caches active pools in RAM, preventing thousands of concurrent users from overloading the database.
+
+Q15: How does the Web Speech API work in your app?
+A15: It runs natively in the browser: `speechSynthesis` converts question text into voice through the
+     speakers (TTS), while `webkitSpeechRecognition` captures microphone audio into text (STT).
+
+Q16: Why use Web Speech API instead of server-side TTS like ElevenLabs?
+A16: It operates with zero latency (instant audio playback), consumes zero server bandwidth, and is
+     100% free with no third-party API costs.
+
+Q17: What model of Google Gemini is used and why?
+A17: `gemini-1.5-flash`, because it offers ultra-fast token response times, a massive context window,
+     strong logical reasoning for code evaluation, and high cost-efficiency.
+
+Q18: How does the backend force Gemini to return valid JSON?
+A18: By setting `response_mime_type="application/json"` in the generation configuration and explicitly
+     defining the required JSON key schema in the prompt.
+
+Q19: When does Gemini get called during an interview?
+A19: It is called only twice: conditionally when the candidate asks for question repetition/clarification,
+     and unconditionally at the very end to evaluate the full interview transcript.
+
+Q20: How does the backend detect if a candidate asked to repeat a question?
+A20: An intelligent keyword pattern matcher checks the transcribed text for triggers ('repeat', 'pardon',
+     'say again'). If matched, it routes to Gemini for a 1-sentence clarification instead of saving an answer.
+
+Q21: What machine learning library powers automated proctoring?
+A21: Face-API.js v0.22.2 running on TensorFlow.js directly inside the client's browser.
+
+Q22: Which ML model is used for face detection?
+A22: TinyFaceDetector, an ultra-lightweight, quantized convolutional neural network optimized for fast
+     browser inference.
+
+Q23: How does proctoring detect looking away or absence?
+A23: It continuously runs face detection against the live webcam stream, calculating bounding box coordinates.
+     If no face is detected or head orientation wanders off-center for 4+ seconds, a warning triggers.
+
+Q24: How does tab-switching detection work?
+A24: It listens to the Page Visibility API (`document.hidden`) and `window.onblur`. If the candidate leaves
+     the tab, an instant violation strike is recorded.
+
+Q25: What is the proctoring disqualification policy?
+A25: A 3-warning strike rule. On the third warning, the interview is immediately terminated and marked disqualified.
+
+Q26: How is the proctoring score calculated?
+A26: Using the mathematical formula: `proctoring_score = max(0, 10 - (warning_count * 3))`.
+
+Q27: How is code safely executed on the backend?
+A27: Using asynchronous subprocesses (`asyncio.create_subprocess_exec`) with strict 5-second wall-clock
+     timeouts and output size truncation to prevent infinite loops and memory exhaustion.
+
+Q28: What code editor is embedded in the frontend?
+A28: Monaco Editor, the web engine powering Microsoft Visual Studio Code.
+
+Q29: What happens if a candidate's internet disconnects mid-interview?
+A29: Because the interview session and questions are frozen in PostgreSQL, the candidate simply refreshes
+     and resumes at the exact question where they left off without losing progress.
+
+Q30: What are the 5 evaluation dimensions Gemini grades?
+A30: Communication, Technical Depth, Code Quality, Optimization, and Problem Solving.
+
+Q31: What hiring signals does Gemini output?
+A31: 'Strong Hire' (90+), 'Hire' (75-89), 'Consider' (60-74), and 'No Hire' (<60).
+
+Q32: What is the role of `backend/api/deps.py`?
+A32: It provides reusable FastAPI dependency injection functions, primarily `get_current_user` which
+     validates the Bearer JWT and protects endpoints.
+
+Q33: What is the role of `frontend/src/api/client.js`?
+A33: It configures the Axios HTTP instance and houses the request interceptor that injects JWT tokens
+     into every outgoing request.
+
+Q34: How do React Context Providers work in AISaraj?
+A34: AuthContext manages user authentication state globally, while AISessionContext manages live interview
+     questions, timers, and transcripts across components without prop drilling.
+
+Q35: What is CORS and how is it configured in FastAPI?
+A35: Cross-Origin Resource Sharing. Configured via CORSMiddleware in `main.py` to allow frontend origins
+     (localhost:3000, vercel.app) to make authorized HTTP requests to the backend.
+
+Q36: What is Pydantic and how is it used here?
+A36: Pydantic is a Python data validation library. It defines schemas that parse, validate, and serialize
+     request bodies and response payloads.
+
+Q37: What is asyncpg and why is it used?
+A37: asyncpg is a high-performance asynchronous PostgreSQL database driver for Python, maximizing
+     concurrency under heavy I/O loads.
+
+Q38: What is SQLAlchemy 2.0 selectin loading?
+A38: It is an asynchronous relationship loading strategy (`lazy="selectin"`) that fetches related objects
+     using a secondary SELECT IN query, avoiding the classic N+1 query problem.
+
+Q39: How does the system handle candidate silence or no answers?
+A39: If no substantive spoken words or code are detected in the transcript, the backend bypasses Gemini
+     and assigns a calibrated score of 0 with 'No Hire' and targeted constructive feedback.
+
+Q40: How is a peer-to-peer human interview conducted?
+A40: Using WebRTC (RTCPeerConnection) to establish a direct peer-to-peer audio/video mesh between the
+     interviewer and candidate with minimal server relay.
+
+Q41: What is the purpose of `pyrefly.toml` in the project?
+A41: It configures search paths (`search-path = ["backend"]`) and virtual environments for the Pyrefly
+     static type checker so module imports resolve cleanly.
+
+Q42: What is the purpose of `vercel.json` in the frontend?
+A42: It contains URL rewrite rules ensuring that all deep client-side routes (like `/ai-interview/42`)
+     are served by `index.html` without returning 404 on page reload.
+
+Q43: What security headers should be used in production?
+A43: Strict-Transport-Security (HSTS), X-Content-Type-Options, X-Frame-Options, and Content-Security-Policy (CSP).
+
+Q44: How are database transactions handled in FastAPI?
+A44: Using SQLAlchemy async sessions inside an `async with` context manager or FastAPI dependency,
+     committing on success and automatically rolling back on exceptions.
+
+Q45: Can Gemini's evaluation be biased? How is it standardized?
+A45: The prompt enforces strict rubric directives across the 0-100 scale with concrete score brackets,
+     minimizing temperature variability and standardizing evaluation across all candidates.
+
+Q46: How are environment variables isolated between development and production?
+A46: Development uses local `.env` files; production uses cloud provider environment key management
+     (Render/Vercel dashboard) injected directly into runtime processes.
+
+Q47: What is the benefit of single-page application (SPA) architecture for an interview app?
+A47: Eliminates full page reloads, preserves audio and webcam streams continuously, and provides smooth
+     desktop-app-like responsiveness during intense technical interviews.
+
+Q48: What is the maximum wall-clock execution time for code in the sandbox?
+A48: 5.0 seconds. Any code running longer is terminated to protect system resources.
+
+Q49: How does Just-in-Time (JIT) provisioning work during Google login?
+A49: If a user logs in via Google for the first time, the backend automatically detects their absence in
+     the `users` table and creates an account on the fly with a random password hash.
+
+Q50: What are the three most impressive engineering highlights of AISaraj?
+A50: 1) Client-side zero-latency voice interaction via Web Speech API;
+     2) Browser-based neural network proctoring using quantized TinyFaceDetector;
+     3) Asynchronous full-transcript evaluation pipeline combining FastAPI and Google Gemini 1.5 Flash.
+================================================================================
+                                END OF MANUAL
+================================================================================
