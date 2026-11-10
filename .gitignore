@@ -13,7 +13,6 @@ build/
 dist/
 
 # Environment & secrets
-.env
 *.pem
 
 # Database
